@@ -1,0 +1,22 @@
+key,zh-CN,hi-IN,en-US,th-TH,es-MX
+string,string,string,string,string,string
+lab_MultiplerKing,倍数排行榜,Multipler King,Multipler King,ราชาตัวคูณ,Top de multiplicadores
+lab_GoldenHarvest,奖金排行榜,Golden Harvest,Golden Harvest,ผลเก็บเกี่ยวทอง,Top de ganancias totales
+lab_LikeLeaderboard,点赞排行榜,Like Leaderboard,Like Leaderboard,กระดานผู้นำการถูกใจ,Top de me gusta
+lab_RookieBlitz,新手排行榜,Rookie Blitz,Rookie Blitz,บลิทซ์มือใหม่,Top de nuevos talentos
+lab_HallofFame,名人堂,Hall of Fame,Hall of Fame,หอเกียรติยศ,Momentos estelares
+lab_desc_1,* 点赞并获取奖励前需先观看视频！,* Liking and earning the reward requires watching the video first!,* Liking and earning the reward requires watching the video first!,* การถูกใจและรับรางวัลต้องดูวิดีโอให้เสร็จก่อน!,"* ¡Para dar like y ganar la recompensa, primero tienes que ver el video!"
+lab_desc_2,* 通过点赞每日每视频可领取一次奖励,* Rewards claimabke once daily per video via liking,* Rewards claimabke once daily per video via liking,* รางวัลสามารถรับได้หนึ่งครั้งต่อวันต่อวิดีโอผ่านการถูกใจ,* Las recompensas se pueden reclamar una vez al día por video mediante like
+lab_desc_3,升级VIP以获取更高奖励：每日高达888,Upgrade VIP for higher rewards:up to 888 daily,Upgrade VIP for higher rewards:up to 888 daily,เพื่อรับรางวัลสูงขึ้น: สูงสุด 888 ต่อวัน,Actualiza a VIP para mayores recompensas: hasta 888 diarios
+lab_levelup_now,立即升级,Level up now,Level up now,อัปเกรดตอนนี้,Subir nivel VIP
+lab_remaining_time,剩余领取次数,Rewards remaining times:,Rewards remaining times:,จำนวนครั้งที่เหลือสำหรับรับรางวัล,Veces restantes
+lab_playNow,立即开始,Play now,Play now,เล่นตอนนี้,¡A jugar!
+lab_share,分享,Share,Share,แชร์,Compartir
+lab_play,开始,Play,Play,เล่น,Ir a jugar
+lab_no,否,No,No,ไม่,No
+lab_yes,是,Yes,Yes,ใช่,Sí
+lab_playback_tips,提升VIP等级可以提升每次赞赏收益，是否提升?,Increasing your VIP level can boost the earnings from each appreciation. Would you like to upgrade?,Increasing your VIP level can boost the earnings from each appreciation. Would you like to upgrade?,การเพิ่มระดับ VIP ของคุณสามารถเพิ่มรายได้จากการถูกใจแต่ละครั้งได้ คุณต้องการอัปเกรดหรือไม่,Aumentar tu nivel VIP puede aumentar los ingresos de cada agradecimiento. ¿Quieres actualizar?
+lab_toggle_tips,今日不再提示,Don't show again today,Don't show again today,ไม่แสดงอีกวันนี้,No volver a mostrar hoy
+lab_loading_desc,* 点赞并获取奖励前需先观看视频！,* Liking  requires watching the video first!,* Liking  requires watching the video first!,* การถูกใจต้องดูวิดีโอให้จบก่อน!,"* ¡Para dar like, primero tienes que ver el video!"
+lab_wonderful_moment,精彩时刻,Wonderful moments,Wonderful moments,ช่วงเวลาที่ยอดเยี่ยม,Momentos maravillosos
+img_playback_titile_type_currency,,lobby/res/images/playback/lang/en-US/tb03,"lobby/res/images/playback/lang/en-US/tb03","lobby/res/images/playback/lang/th-TH/tb03-th","lobby/res/images/playback/lang/es-MX/tb03"

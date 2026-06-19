@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option go_package = "./Client";  
+
+message Topic
+{
+    string moudleType = 1;    //模块/服务名
+    string handler = 2;    //方法
+    uint32 msgId = 3;//本次消息唯一ID [可选]
+}

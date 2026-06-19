@@ -1,0 +1,120 @@
+:root {
+    --section-gap: 12px;
+}
+
+#app {
+    padding: 12px;
+    box-sizing: border-box;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.panel-root {
+    position: relative;
+}
+
+.panel-root.is-busy {
+    pointer-events: none;
+    opacity: 0.72;
+}
+
+.busy-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    cursor: wait;
+}
+
+.section-block {
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--color-normal-contrast-emphasis);
+}
+
+.field-row {
+    margin-bottom: 8px;
+}
+
+.field-label {
+    font-size: 12px;
+    margin-bottom: 4px;
+    color: var(--color-normal-contrast-weaker);
+}
+
+.path-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.path-row ui-input {
+    flex: 1;
+}
+
+.version-display {
+    font-family: monospace;
+    font-size: 13px;
+    padding: 6px 8px;
+    background: var(--color-normal-fill-emphasis);
+    border-radius: 4px;
+    min-height: 18px;
+}
+
+.version-display.is-empty {
+    color: var(--color-normal-contrast-weakest);
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.action-group {
+    margin-top: 12px;
+    padding: 8px;
+    border-radius: 4px;
+    background: var(--color-normal-fill);
+}
+
+.action-group ui-button {
+    width: 100%;
+}
+
+.progress-block {
+    margin-top: 6px;
+}
+
+.progress-block.tight {
+    margin-top: 4px;
+}
+
+.progress-text {
+    font-size: 12px;
+    margin-top: 4px;
+    color: var(--color-normal-contrast-weaker);
+    word-break: break-all;
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.config-grid .full-width {
+    grid-column: 1 / -1;
+}
+
+.hint {
+    font-size: 11px;
+    color: var(--color-normal-contrast-weakest);
+    margin-top: 4px;
+}
+
+.divider {
+    height: 1px;
+    background: var(--color-normal-border);
+    margin: 16px 0;
+}

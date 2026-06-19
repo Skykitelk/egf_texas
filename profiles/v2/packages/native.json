@@ -1,0 +1,24 @@
+{
+  "__version__": "1.0.2",
+  "builder": {
+    "options": {
+      "android": {
+        "encrypted": true,
+        "xxteaKey": "81uY+HcNBEyJ00Gm",
+        "compressZip": false,
+        "JobSystem": "none",
+        "__version__": "1.0.2"
+      }
+    },
+    "taskOptionsMap": {
+      "1781365571360": {
+        "encrypted": true,
+        "xxteaKey": "81uY+HcNBEyJ00Gm",
+        "compressZip": false,
+        "JobSystem": "none",
+        "__version__": "1.0.2"
+      }
+    },
+    "__version__": "1.3.9"
+  }
+}

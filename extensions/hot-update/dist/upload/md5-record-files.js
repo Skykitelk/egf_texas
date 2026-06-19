@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.isMd5RecordFile = isMd5RecordFile;
+/** MD5 元数据文件：须始终从本地上传，确保远程记录与本地一致 */
+const MD5_RECORD_PATTERNS = [
+    /^manifest\/[^/]+_version\.json$/,
+    /^zips\/zips\.json$/,
+];
+function isMd5RecordFile(relPath) {
+    return MD5_RECORD_PATTERNS.some((pattern) => pattern.test(relPath));
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWQ1LXJlY29yZC1maWxlcy5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NvdXJjZS91cGxvYWQvbWQ1LXJlY29yZC1maWxlcy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOztBQU1BLDBDQUVDO0FBUkQscUNBQXFDO0FBQ3JDLE1BQU0sbUJBQW1CLEdBQUc7SUFDeEIsaUNBQWlDO0lBQ2pDLG9CQUFvQjtDQUN2QixDQUFDO0FBRUYsU0FBZ0IsZUFBZSxDQUFDLE9BQWU7SUFDM0MsT0FBTyxtQkFBbUIsQ0FBQyxJQUFJLENBQUMsQ0FBQyxPQUFPLEVBQUUsRUFBRSxDQUFDLE9BQU8sQ0FBQyxJQUFJLENBQUMsT0FBTyxDQUFDLENBQUMsQ0FBQztBQUN4RSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiLyoqIE1ENSDlhYPmlbDmja7mlofku7bvvJrpobvlp4vnu4jku47mnKzlnLDkuIrkvKDvvIznoa7kv53ov5znqIvorrDlvZXkuI7mnKzlnLDkuIDoh7QgKi9cbmNvbnN0IE1ENV9SRUNPUkRfUEFUVEVSTlMgPSBbXG4gICAgL15tYW5pZmVzdFxcL1teL10rX3ZlcnNpb25cXC5qc29uJC8sXG4gICAgL156aXBzXFwvemlwc1xcLmpzb24kLyxcbl07XG5cbmV4cG9ydCBmdW5jdGlvbiBpc01kNVJlY29yZEZpbGUocmVsUGF0aDogc3RyaW5nKTogYm9vbGVhbiB7XG4gICAgcmV0dXJuIE1ENV9SRUNPUkRfUEFUVEVSTlMuc29tZSgocGF0dGVybikgPT4gcGF0dGVybi50ZXN0KHJlbFBhdGgpKTtcbn1cbiJdfQ==

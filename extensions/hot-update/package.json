@@ -1,0 +1,64 @@
+{
+    "$schema": "./@types/schema/package/index.json",
+    "package_version": 2,
+    "name": "hot-update",
+    "version": "1.0.0",
+    "author": "nicki",
+    "editor": ">=3.8.8",
+    "scripts": {
+        "preinstall": "node ./scripts/preinstall.js",
+        "build": "npx tsc"
+    },
+    "description": "i18n:hot-update.description",
+    "main": "./dist/main.js",
+    "dependencies": {
+        "@aws-sdk/client-s3": "^3.758.0",
+        "archiver": "^7.0.1",
+        "fs-extra": "^10.0.0",
+        "ssh2-sftp-client": "^11.0.0",
+        "vue": "^3.1.4"
+    },
+    "devDependencies": {
+        "@cocos/creator-types": "^3.8.7",
+        "@types/archiver": "^6.0.3",
+        "@types/fs-extra": "^9.0.5",
+        "@types/node": "^18.17.1",
+        "@types/ssh2-sftp-client": "^9.0.4",
+        "typescript": "^5.8.2"
+    },
+    "panels": {
+        "default": {
+            "title": "i18n:hot-update.panel_title",
+            "type": "dockable",
+            "main": "dist/panels/default",
+            "size": {
+                "min-width": 520,
+                "min-height": 480,
+                "width": 720,
+                "height": 820
+            }
+        }
+    },
+    "contributions": {
+        "menu": [
+            {
+                "path": "i18n:menu.panel",
+                "label": "i18n:hot-update.open_panel",
+                "message": "open-panel"
+            }
+        ],
+        "messages": {
+            "open-panel": { "methods": ["openPanel"] },
+            "format-version-timestamp": { "methods": ["formatVersionTimestamp"] },
+            "generate-remote-version": { "methods": ["generateRemoteVersion"] },
+            "generate-package-version": { "methods": ["generatePackageVersion"] },
+            "upload-resources": { "methods": ["uploadResources"] },
+            "save-profile": { "methods": ["saveProfile"] },
+            "load-profile": { "methods": ["loadProfile"] },
+            "validate-version-dir": { "methods": ["validateVersionDir"] },
+            "remote-progress": { "methods": ["default.onRemoteProgress"] },
+            "package-progress": { "methods": ["default.onPackageProgress"] },
+            "upload-progress": { "methods": ["default.onUploadProgress"] }
+        }
+    }
+}

@@ -1,0 +1,18 @@
+{
+  "__version__": "1.0.0",
+  "builder": {
+    "options": {
+      "android": {
+        "enableHotUpdateBuild": false,
+        "hotUpdateVersion": "1.0.0",
+        "cdnBaseUrl": "https://cdn.example.com/hot",
+        "outputPath": "hot-update-output",
+        "bundleList": "",
+        "generateZip": true,
+        "includeEngine": true,
+        "includeBuiltIn": true,
+        "__version__": "1.0.0"
+      }
+    }
+  }
+}
