@@ -1,3 +1,4 @@
+import "./views";
 import { App } from '@ailhc/egf-core';
 import { _decorator, Component, Enum, Node } from 'cc';
 import { m, ModuleLoader } from './modules/ModuleMgr';
@@ -73,7 +74,7 @@ export class main extends Component {
             m.uiMgr.hideDpc('LoginView');
 
             this.scheduleOnce(() => {
-                m.uiMgr.showDpc('LoginView', {playerName: "test"});
+                m.uiMgr.showDpc('LoginView')
             }, 3);
         }, 3);
     }

@@ -9,8 +9,10 @@ import { StorageMgr } from "./StorageMgr";
 import { CsvMgr } from "./CsvMgr";
 import { JsbBridgeMgr } from "./JsbBridgeMgr";
 import { AssetMgr } from "./AssetMgr";
-import { ViewCtrlClassMap } from "../configs/ViewConfig";
+import { syncViewRegistryToUiMgr, validateViewRegistry } from "../configs/ViewRegistry";
+import "../configs/ViewConfig";
 import { BroadCastMgr } from "./BroadCastMgr";
+import { HttpMgr } from "./HttpMgr";
 
 declare global {
 
@@ -62,6 +64,10 @@ declare global {
          * 广播管理器
          */
         broadCastMgr: BroadCastMgr;
+        /**
+         * HTTP 管理器
+         */
+        httpMgr: HttpMgr;
     }
 
     /**
@@ -154,7 +160,14 @@ export class ModuleLoader implements egf.IBootLoader {
                 this.releaseResHandler(ctrlIns);
             },
         });
-        uiMgr.registTypes(ViewCtrlClassMap);
+
+        /**
+         * 日志管理器（View 注册校验需要 logMgr，先创建实例）
+         */
+        const logMgr = new LogMgr();
+
+        validateViewRegistry(logMgr);
+        syncViewRegistryToUiMgr(uiMgr, logMgr);
 
         /**
          * 层级管理器
@@ -165,10 +178,6 @@ export class ModuleLoader implements egf.IBootLoader {
          * 对象池管理器
          */
         const poolMgr = new ObjPoolMgr();
-        /**
-         * 日志管理器
-         */
-        const logMgr = new LogMgr();
         /**
          * 热更新管理器
          */
@@ -197,6 +206,10 @@ export class ModuleLoader implements egf.IBootLoader {
          * 广播管理器
          */
         const broadCastMgr = new BroadCastMgr();
+        /**
+         * HTTP 管理器
+         */
+        const httpMgr = new HttpMgr();
 
         app.loadModule(assetMgr, "assetMgr");
         app.loadModule(uiMgr, "uiMgr");
@@ -209,6 +222,7 @@ export class ModuleLoader implements egf.IBootLoader {
         app.loadModule(csvMgr, "csvMgr");
         app.loadModule(jsbBridgeMgr, "jsbBridgeMgr");
         app.loadModule(broadCastMgr, "broadCastMgr");
+        app.loadModule(httpMgr, "httpMgr");
 
         m = app.moduleMap;
         if (this.isMountWindow) {

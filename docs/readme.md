@@ -2,788 +2,548 @@
 
 ## 目录
 
-- [项目概览](./readme.md#overview)
-- [核心目录结构](./readme.md#structure)
-- [启动流程](./readme.md#startup)
-- [全局模块列表](./readme.md#modules)
-- [UI 模块](./readme.md#ui)
-- [资源模块 AssetMgr](./readme.md#assetmgr)
-- [层级模块 LayerMgr](./readme.md#layermgr)
-- [日志模块 LogMgr](./readme.md#logmgr)
-- [存储模块 StorageMgr](./readme.md#storagemgr)
-- [CSV 模块 CsvMgr](./readme.md#csvmgr)
-- [音频模块 AudioMgr](./readme.md#audiomgr)
-- [原生桥接 JsbBridgeMgr](./readme.md#jsbbridgemgr)
-- [热更新模块 HotUpdateMgr](./readme.md#hotupdatemgr)
-- [模块动态加载](./readme.md#dynamic-modules)
-- [开发约定](./readme.md#conventions)
+- [项目概览](#项目概览)
+- [技术栈](#技术栈)
+- [项目结构](#项目结构)
+- [架构与启动](#架构与启动)
+- [全局模块速查](#全局模块速查)
+- [UI 开发](#ui-开发)
+- [资源模块 AssetMgr](#资源模块-assetmgr)
+- [层级模块 LayerMgr](#层级模块-layermgr)
+- [日志模块 LogMgr](#日志模块-logmgr)
+- [存储模块 StorageMgr](#存储模块-storagemgr)
+- [CSV 模块 CsvMgr](#csv-模块-csvmgr)
+- [HTTP 模块 HttpMgr](#http-模块-httpmgr)
+- [广播模块 BroadCastMgr](#广播模块-broadcastmgr)
+- [音频模块 AudioMgr](#音频模块-audiomgr)
+- [原生桥接 JsbBridgeMgr](#原生桥接-jsbbridgemgr)
+- [热更新模块 HotUpdateMgr](#热更新模块-hotupdatemgr)
+- [协议 Protobuf](#协议-protobuf)
+- [模块动态加载](#模块动态加载)
+- [开发约定](#开发约定)
+- [相关文档](#相关文档)
 
-<a id="overview"></a>
+---
 
 ## 项目概览
 
-本项目基于 Cocos Creator `3.8.8`，使用 `@ailhc/egf-core` 进行应用启动和模块管理。项目核心能力集中在 `assets/scripts/modules`，初始化完成后通过全局访问器 `m` 使用各模块。
+EGF Texas 是基于 **Cocos Creator 3.8.8** 的游戏客户端项目，使用 `@ailhc/egf-core` 做应用启动与模块管理。
 
-入口组件是 `assets/scripts/main.ts`，主要负责创建 `App`、注册模块、配置日志环境。
+核心思路：
 
-<a id="structure"></a>
+- 启动时由 `ModuleLoader` 注册全部模块，业务通过全局访问器 **`m`** 调用
+- UI 基于 `@ailhc/dpctrl-c3d` 的 `DpcMgr` + `NodeCtrl` 控制器模式
+- 资源、音频、存储、CSV、HTTP 等能力封装在 `assets/scripts/modules/`
 
-## 核心目录结构
+入口组件：`assets/scripts/main.ts`
 
-- `assets/scripts/main.ts`：项目入口组件。
-- `assets/scripts/modules/`：资源、音频、存储、CSV、热更新、JSB、日志等核心模块。
-- `assets/scripts/views/`：UI 控制器。
-- `assets/scripts/configs/ViewConfig.ts`：UI 控制器注册表和层级枚举。
-- `assets/scripts/protos/`：协议类型文件。
-- `docs/readme.md`：项目使用说明。
+---
 
-<a id="startup"></a>
+## 技术栈
 
-## 启动流程
+| 类别 | 依赖 / 工具 |
+|------|-------------|
+| 引擎 | Cocos Creator 3.8.8 |
+| 框架 | `@ailhc/egf-core` |
+| UI | `@ailhc/dpctrl-c3d`、`@ailhc/layer` |
+| 对象池 | `@ailhc/obj-pool` |
+| 广播 | `@ailhc/broadcast` |
+| 网络（预留） | `@ailhc/enet` |
+| 协议 | `egf-protobuf` |
+| 加密 | `crypto-es`（StorageMgr AES） |
+| 热更新插件 | `extensions/hot-update` |
 
-1. 场景节点挂载 `main` 组件。
-2. `main.onLoad()` 调用 `initApp()`。
-3. 创建 `App<IModuleMap>`。
-4. 通过 `ModuleLoader` 注册所有模块。
-5. 调用 `app.init()` 触发模块生命周期。
-6. 通过 `m.xxxMgr` 使用模块。
+---
+
+## 项目结构
+
+```
+egf_texas/
+├── assets/
+│   ├── scene/main.scene          # 主场景，挂载 main 组件
+│   ├── resources/                # 默认 bundle 资源
+│   └── scripts/
+│       ├── main.ts               # 入口组件
+│       ├── modules/              # 核心模块（通过 m.xxxMgr 访问）
+│       ├── views/                # UI 控制器
+│       ├── components/BaseView.ts # UI 基类（弹窗动画）
+│       ├── customLayers/         # 层级实现（SceneLayer）
+│       ├── configs/              # View / Layer / BroadCast 配置
+│       ├── protos/               # Protobuf 生成产物
+│       └── utils/                # 工具函数
+├── extensions/hot-update/        # 编辑器热更新面板插件
+├── protobuf/                     # Protobuf 配置
+└── docs/
+    ├── readme.md                 # 本文档
+    └── 热更新逻辑说明.md          # 热更新详细设计
+```
+
+---
+
+## 架构与启动
+
+### 启动流程
+
+1. 场景节点挂载 `main` 组件
+2. `main.onLoad()` → `initApp()` 创建 `App<IModuleMap>` 并 bootstrap
+3. `ModuleLoader` 注册全部模块，赋值全局 `m`
+4. `app.init()` 触发各模块 `onInit()`
+5. `setupModule()` 配置日志级别与环境
+6. 业务代码通过 `m.xxxMgr` 访问模块
 
 ```ts
-/**
- * @param root ModuleLoader 挂载层级和音频根节点时使用的 Cocos 节点。
- * @param isMountWindow 是否把模块表挂到 `window.m`，便于调试。
- */
 const app = new App<IModuleMap>();
 await app.bootstrap([new ModuleLoader(this.node, this.isMountWindow)]);
 app.init();
 
-m.logMgr.info("[app] init success");
+m.logMgr.setMinLevel(this.logLevel);
+m.logMgr.setProduction(this.appEnv === EAppEnv.PROD);
 ```
 
-<a id="modules"></a>
+### main 组件可配置项
 
-## 全局模块列表
+| 属性 | 说明 |
+|------|------|
+| `isMountWindow` | 是否将 `m` 挂到 `window`，便于调试；生产环境自动关闭 |
+| `logLevel` | 最低日志级别：`log` / `info` / `warn` / `error` |
+| `appEnv` | 应用环境：`dev` / `prod`；prod 下过滤 log 和 info |
 
-- `m.uiMgr`：UI 控制器显示、隐藏、更新。
-- `m.layerMgr`：UI 层级管理。
-- `m.assetMgr`：资源加载、缓存、引用计数和释放。
-- `m.audioMgr`：BGM / SFX 播放与任务控制。
-- `m.storageMgr`：本地存储、domain 作用域隔离和可选加密。
-- `m.csvMgr`：CSV 加载、解析、查询和缓存。
-- `m.logMgr`：日志输出和生产环境过滤。
-- `m.hotUpdateMgr`：热更新实例管理。
-- `m.jsbBridgeMgr`：原生平台桥接。
-- `m.poolMgr`：对象池。
+### 全局访问器
 
-<a id="ui"></a>
+| 变量 | 说明 |
+|------|------|
+| `m` | 模块映射表，`m.uiMgr`、`m.assetMgr` 等 |
+| `app` | EGF 应用实例 |
 
-## UI 模块
+类型定义在 `assets/scripts/modules/ModuleMgr.ts` 的 `IModuleMap` 中扩展。
 
-UI 使用 `@ailhc/dpctrl-c3d` 的 `DpcMgr` 和 `NodeCtrl`。新增 UI 时，需要定义类型、创建控制器、注册控制器，并声明资源。
+---
 
-### 定义 UI 类型
+## 全局模块速查
+
+| 模块 | 访问器 | 职责 |
+|------|--------|------|
+| UI 管理 | `m.uiMgr` | 界面显示 / 隐藏 / 更新 |
+| 层级管理 | `m.layerMgr` | UI 分层挂载 |
+| 资源管理 | `m.assetMgr` | 加载、缓存、引用计数、释放 |
+| 音频管理 | `m.audioMgr` | BGM / SFX 播放与任务控制 |
+| 存储管理 | `m.storageMgr` | 本地存储、domain 隔离、可选加密 |
+| CSV 管理 | `m.csvMgr` | 配表加载、解析、查询 |
+| HTTP 管理 | `m.httpMgr` | HTTP 请求封装 |
+| 广播管理 | `m.broadCastMgr` | 事件广播实例管理 |
+| 日志管理 | `m.logMgr` | 日志输出与生产环境过滤 |
+| 热更新管理 | `m.hotUpdateMgr` | Bundle 级热更新实例 |
+| 原生桥接 | `m.jsbBridgeMgr` | Android / iOS JSB 能力 |
+| 对象池 | `m.poolMgr` | 通用对象池 |
+
+---
+
+## UI 开发
+
+UI 使用 `@ailhc/dpctrl-c3d` 的 `DpcMgr` + `NodeCtrl`。新增界面四步：**定义类型 → 装饰器注册 View → 加入 views/index → show/hide 使用**。
+
+相关文件：
+
+| 文件 | 职责 |
+|------|------|
+| `configs/ViewConfig.ts` | 全局 UI 类型映射 |
+| `configs/ViewRegistry.ts` | `@registTypesToUiMgr` 装饰器与注册表 |
+| `views/index.ts` | 聚合 import，触发装饰器执行 |
+| `components/BaseView.ts` | UI 基类（prefab 挂载、默认 getRess、弹窗动画） |
+| `configs/LayerConfig.ts` | 层级枚举 |
+| `views/LoginView.ts` | 示例 |
+
+启动时 `ModuleLoader` 会调用 `validateViewRegistry()` 校验装饰器注册结果，再执行 `syncViewRegistryToUiMgr()` 同步到 `uiMgr`。
+
+### 1. 定义 UI 类型
+
+在 `ViewConfig.ts` 中扩展全局类型映射，使 `showDpc()` / `onInit()` / `onShow()` 获得类型提示：
 
 ```ts
-/**
- * @remarks 扩展全局 UI 类型映射后，`showDpc()` / `onInit()` / `onShow()` 可获得类型提示。
- */
 declare global {
     interface IViewKeyMap {
         LoginView: "LoginView";
     }
-
     interface IViewInitDataMap {
         LoginView: { playerName: string };
     }
-
     interface IViewShowDataMap {
         LoginView: { playerName: string };
     }
-
     interface IViewUpdateDataMap {
         LoginView: { playerName: string };
     }
 }
 ```
 
-### 创建控制器
+### 2. 创建控制器并注册
 
+`@registTypesToUiMgr` 会自动：写入 `typeKey`、写入 View 注册表、配置 prefab 元数据；启动或热更后调用 `syncViewRegistryToUiMgr()` 时再同步到 `uiMgr`。
+
+装饰器第二参数可选，传入后 `BaseView.getRess()` 和 `mountPrefabView()` 可直接使用：
 
 ```ts
-/**
- * @param typeKey UI 控制器唯一 key。
- * @param prefabUrl prefab 在 bundle 内的路径，不带扩展名。
- * @returns `getRess()` 返回 UI 预加载资源列表。
- */
-export class LoginView extends NodeCtrl {
-    static typeKey = "LoginView";
-    static prefabUrl = "login/LoginView";
+import { LayerType } from "../configs/LayerConfig";
+import { registTypesToUiMgr } from "../configs/ViewRegistry";
+import { BaseView } from "../components/BaseView";
 
-    private static _ress: IViewRessItem[] = [
-        { path: LoginView.prefabUrl, type: Prefab, bundle: "resources" },
-    ];
+@registTypesToUiMgr("LoginView", {
+    prefabUrl: "login/LoginView",
+    bundle: "resources",       // 默认 resources
+    layer: LayerType.UI,       // 默认 LayerType.UI
+})
+export class LoginView extends BaseView {
 
-    getRess() {
-        return LoginView._ress;
+    onInit(config: displayCtrl.IInitConfig<"LoginView", IViewInitDataMap>) {
+        super.onInit(config);
+        this.mountPrefabView();  // 实例化 prefab 并挂载到层级
     }
 }
 ```
 
-### 注册控制器
+- 无需手写 `static typeKey` 和 `ViewCtrlClassMap`
+- 无需手写 `getRess()`（装饰器配置了 prefab 时由 `BaseView` 自动生成）
+- 类名与 `viewName` 不一致时会在控制台警告
+
+### 3. 加入 views/index.ts
+
+新增 View 后必须在 `assets/scripts/views/index.ts` 中 import，否则装饰器不会执行、启动时无法注册：
 
 ```ts
-/**
- * @param LoginView 控制器类，key 必须与控制器的 `typeKey` 一致。
- */
-export const ViewCtrlClassMap: displayCtrl.CtrlClassMap = {
-    LoginView: LoginView,
-};
+import "./LoginView";
+import "./ShopView"; // 新增
 ```
 
-### `showDpc()` 显示界面
+### 热更 / 延迟注册 View
+
+`@registTypesToUiMgr` 在 **模块 import 时** 写入 `ViewCtrlRegistry`，与 `uiMgr.regist` 时机无关。热更 bundle 中的 View 可按以下流程注册：
 
 ```ts
-/**
- * @param typeKey 界面类型 key，例如 `"LoginView"`。
- * @param onShowData 显示时传给 `onShow()` 的数据。
- * @param showedCb 界面显示完成后的回调。
- * @param onInitData 首次创建界面时传给 `onInit()` 的初始化数据。
- */
+import { syncViewRegistryToUiMgr } from "../configs/ViewRegistry";
+
+// 1. 加载热更 View 模块（装饰器在此刻写入注册表）
+await import("../views/ShopView");
+
+// 2. 将尚未注册的控制器同步到 uiMgr（可省略 uiMgr 参数，默认读 m.uiMgr）
+syncViewRegistryToUiMgr();
+
+// 3. 正常 showDpc（资源在 show 时加载，不在 regist 时）
+m.uiMgr.showDpc("ShopView", { playerName: "test" });
+```
+
+- 跨 bundle 的 prefab：装饰器传 `bundle: "game"` 即可
+- `syncViewRegistryToUiMgr(uiMgr, logMgr)` 会跳过已注册的 key，可重复调用
+- 启动时 `ModuleLoader` 内部同样走 `syncViewRegistryToUiMgr(uiMgr, logMgr)`
+
+### 4. 显示 / 隐藏
+
+```ts
 m.uiMgr.showDpc(
     "LoginView",
-    { playerName: "玩家1" },
-    () => {
-        m.logMgr.info("LoginView showed");
-    },
-    { playerName: "玩家0" },
+    { playerName: "玩家1" },       // onShowData
+    () => m.logMgr.info("showed"), // showedCb
+    { playerName: "玩家0" },       // onInitData（首次创建）
 );
-```
 
-### `hideDpc()` 隐藏界面
-
-```ts
-/**
- * @param typeKey 要隐藏的界面类型 key，例如 `"LoginView"`。
- */
 m.uiMgr.hideDpc("LoginView");
 ```
 
-### `getRess()` 声明 UI 资源
+### 资源声明规范
 
-```ts
-/**
- * @param path 资源在 `bundle` 内的路径，不带扩展名。
- * @param type 资源类型，例如 `Prefab`。
- * @param bundle 资源所属 bundle，例如 `"resources"`。
- */
-getRess() {
-    return [
-        { path: "login/LoginView", type: Prefab, bundle: "resources" },
-    ];
-}
-```
+- 资源项必须包含 `path`、`type`、`bundle`，不要使用纯字符串路径
+- UI 资源由 `ModuleMgr.releaseResHandler()` 在界面销毁时统一释放
+- View 的 `onDestroy()` **不要**再手动 `releaseBatch(getRess())`，否则会重复释放
 
-资源项必须包含 `path`、`type`、`bundle`，不要使用纯字符串路径。
-
-UI 资源由 `ModuleMgr.releaseResHandler()` 在界面销毁时统一释放。业务 View 的 `onDestroy()` 不要再手动调用 `m.assetMgr.releaseBatch(getRess())`，否则会造成重复释放。
-
-<a id="assetmgr"></a>
+---
 
 ## 资源模块 AssetMgr
 
-`AssetMgr` 负责资源加载、缓存、并发加载去重、引用计数和释放。所有对外资源接口都要求首参是完整资源项。
+`AssetMgr` 负责资源加载、缓存、并发去重、引用计数和释放。所有对外接口首参均为完整资源项 `{ path, type, bundle }`。
 
-`load()` 使用缓存时会增加逻辑引用计数；`release()` 引用归零后会释放该缓存资源持有的引擎引用。`useCache: false` 的资源不会进入 `AssetMgr` 缓存，调用方需要自行管理其生命周期。
+- `load()` 使用缓存时增加引用计数
+- `release()` 引用归零后释放引擎引用
+- `useCache: false` 的资源不进入缓存，调用方自行管理生命周期
 
 ```ts
-/**
- * @param path 资源路径，不带扩展名。
- * @param type 资源类型，`load()` 和 `get()` 会根据它自动推导返回类型。
- * @param bundle 资源所属 bundle。
- */
 const loginPrefabRes = {
     path: "login/LoginView",
     type: Prefab,
     bundle: "resources",
 } as const;
-```
 
-### `load()` 加载资源
+// 加载
+const prefab = await m.assetMgr.load(loginPrefabRes, { useCache: true });
 
-```ts
-/**
- * @param item 完整资源项。
- * @param options.useCache 是否加入缓存并使用引用计数。
- */
-const prefab = await m.assetMgr.load(loginPrefabRes, {
-    useCache: true,
-});
-```
-
-### `loadBatch()` 批量加载
-
-```ts
-/**
- * @param items 资源项数组，每一项都必须包含 `path`、`type`、`bundle`。
- * @returns 返回数组顺序与 `items` 一致；使用 `as const` 时类型推导更精确。
- */
-const [loginPrefab] = await m.assetMgr.loadBatch([
+// 批量加载
+const [prefab2] = await m.assetMgr.loadBatch([
     { path: "login/LoginView", type: Prefab, bundle: "resources" },
 ] as const);
-```
 
-### `get()` 获取缓存资源
+// 读取缓存（不增加引用计数）
+const cached = m.assetMgr.get(loginPrefabRes);
+const exists = m.assetMgr.has(loginPrefabRes);
 
-```ts
-/**
- * @param item 完整资源项，用于精确定位缓存资源。
- * @remarks 不增加引用计数。
- */
-const prefab = m.assetMgr.get(loginPrefabRes);
-```
-
-### `has()` 判断是否缓存
-
-```ts
-/**
- * @param item 完整资源项。
- */
-const hasPrefab = m.assetMgr.has(loginPrefabRes);
-```
-
-### `release()` 释放一次引用
-
-```ts
-/**
- * @param item 完整资源项；每调用一次释放一次对应资源引用。
- */
+// 释放
 m.assetMgr.release(loginPrefabRes);
-```
-
-### `releaseBatch()` 批量释放
-
-```ts
-/**
- * @param items 资源项数组，建议与 `loadBatch()` 入参保持一致。
- */
-m.assetMgr.releaseBatch([
-    { path: "login/LoginView", type: Prefab, bundle: "resources" },
-]);
-```
-
-### `releaseAll()` 释放全部缓存
-
-```ts
-/**
- * @remarks 无参数。会强制释放 `AssetMgr` 当前缓存中的全部资源。
- */
+m.assetMgr.releaseBatch([loginPrefabRes]);
 m.assetMgr.releaseAll();
 ```
 
-<a id="layermgr"></a>
+---
 
 ## 层级模块 LayerMgr
 
-层级枚举定义在 `ViewConfig.ts`，用于将 UI 节点放到对应层。
+层级枚举定义在 `LayerConfig.ts`：
 
-### `addNodeToLayer()` 添加节点到层级
+| 层级 | 枚举 | 用途 |
+|------|------|------|
+| 场景层 | `LayerType.SCENE` | 登录、大厅、游戏场景 |
+| 常规 UI | `LayerType.UI` | 背包、商城、设置 |
+| 弹窗层 | `LayerType.POP` | 活动、礼包 |
+| 最顶层 | `LayerType.TOP` | 引导、提示、公告 |
 
 ```ts
-/**
- * @param node 要加入层级的 Cocos 节点。
- * @param layerType 目标层级，例如 `LayerType.UI`。
- */
 m.layerMgr.addNodeToLayer(this.node, LayerType.UI);
 ```
 
-常用层级：
+所有层级当前使用 `SceneLayer` 实现，会根据子节点 `active` 状态自动显隐。
 
-- `LayerType.SCENE`：场景层。
-- `LayerType.UI`：常规 UI。
-- `LayerType.POP_UP_UI`：弹窗层。
-- `LayerType.EFFECT_UI`：特效层。
-- `LayerType.TOP`：最顶层。
-
-<a id="logmgr"></a>
+---
 
 ## 日志模块 LogMgr
 
-`LogMgr` 用于统一控制日志级别和生产环境输出。
-
-### `setMinLevel()` 设置最低输出级别
-
 ```ts
-/**
- * @param level 最低输出级别，可选 `"log"`、`"info"`、`"warn"`、`"error"`。
- */
-m.logMgr.setMinLevel("warn");
-```
+m.logMgr.setMinLevel("warn");       // log / info / warn / error
+m.logMgr.setProduction(true);       // prod 下过滤 log 和 info
 
-### `setProduction()` 设置生产环境
-
-```ts
-/**
- * @param prod 是否开启生产环境日志策略；生产环境会过滤 `log` 和 `info`。
- */
-m.logMgr.setProduction(true);
-```
-
-### 日志输出
-
-```ts
-/**
- * @param args 任意日志内容。
- */
 m.logMgr.log("普通日志", data);
 m.logMgr.info("初始化完成");
 m.logMgr.warn("资源未命中", path);
 m.logMgr.error("加载失败", err);
 ```
 
-<a id="storagemgr"></a>
+---
 
 ## 存储模块 StorageMgr
 
-`StorageMgr` 基于 `sys.localStorage`，支持类型封装、对象序列化、domain 作用域隔离、内存缓存和可选 AES 加密。
+基于 `sys.localStorage`，支持类型封装、JSON 序列化、domain 作用域隔离、内存缓存和可选 AES 加密。
 
-多数对外接口最后一个参数都是 `domain`：
+**domain 规则：**
 
-- 不传 `domain`：操作全局域。
-- 传入 `domain`：只操作指定作用域。
-- `null` 是合法存储值，`get()` 和 `getBatch()` 都会按 `null` 返回。
-- `getString()` / `getNumber()` / `getBoolean()` 等 typed getter 会在值为 `null` 或类型不匹配时返回默认值。
-
-### domain 示例
+- 不传 `domain` → 全局域
+- 传入 `domain` → 指定作用域（多账号隔离）
+- `null` 是合法存储值
 
 ```ts
-/**
- * @param key 逻辑键名。
- * @param value 要写入的值。
- * @param options 写入选项；这里传 `undefined` 表示使用默认选项。
- * @param domain 作用域；不传表示全局域。
- */
-m.storageMgr.setNumber("coin", 1000);
-m.storageMgr.setNumber("coin", 2000, undefined, "player_10001");
-
-const globalCoin = m.storageMgr.getNumber("coin", 0);
-const playerCoin = m.storageMgr.getNumber("coin", 0, "player_10001");
-```
-
-### 配置项
-
-```ts
-/**
- * @param prefix 存储键前缀，会自动补 `_`。
- * @param encrypt 是否默认加密后续写入的数据。
- * @param memoryCacheEnabled 是否启用内存读缓存。
- * @param key AES 加密密钥，只影响后续新写入的数据。
- */
+// 配置
 m.storageMgr.prefix = "texas";
 m.storageMgr.encrypt = true;
-m.storageMgr.memoryCacheEnabled = false;
 m.storageMgr.setSecretKey("my-secret-key");
-```
 
-### `set()` / `setString()` / `setNumber()` / `setBoolean()` / `setObject()`
-
-```ts
-/**
- * @param key 逻辑键名，不包含模块前缀和 domain。
- * @param value 要写入的值；`set()` 传 `undefined` 等价于删除该键。
- * @param options.encrypt 是否单独加密本条数据。
- * @param domain 作用域；不传表示全局域。
- */
-m.storageMgr.set("profile", { name: "Alice", level: 10 });
-m.storageMgr.setString("player_name", "Alice");
-m.storageMgr.setNumber("coin", 1000);
-m.storageMgr.setBoolean("tutorial_done", true);
+// 写入
 m.storageMgr.setObject("settings", { music: true, sfx: true });
+m.storageMgr.setNumber("coin", 1000, undefined, "player_10001");
 
-m.storageMgr.setNumber("coin", 2000, undefined, "player_10001");
-```
-
-### `setBatch()` 批量写入
-
-```ts
-/**
- * @param entries 键值对字典。
- * @param options 写入选项，会应用到每一项。
- * @param domain 作用域；不传表示全局域。
- */
-m.storageMgr.setBatch({
-    level: 10,
-    exp: 2500,
-    coin: 1000,
-});
-
-m.storageMgr.setBatch({ level: 20, coin: 2000 }, undefined, "player_10001");
-```
-
-### `get()` / `getString()` / `getNumber()` / `getBoolean()` / `getObject()` / `getArray()`
-
-```ts
-/**
- * @param key 逻辑键名。
- * @param defaultValue 读取失败或类型不匹配时返回的默认值。
- * @param domain 作用域；不传表示全局域。
- */
-const profile = m.storageMgr.get<{ name: string; level: number }>("profile");
-const name = m.storageMgr.getString("player_name", "Guest");
-const coin = m.storageMgr.getNumber("coin", 0);
-const done = m.storageMgr.getBoolean("tutorial_done", false);
+// 读取
+const coin = m.storageMgr.getNumber("coin", 0, "player_10001");
 const settings = m.storageMgr.getObject<{ music: boolean }>("settings");
-const ids = m.storageMgr.getArray<number>("completed_levels", []);
 
-const playerCoin = m.storageMgr.getNumber("coin", 0, "player_10001");
-```
-
-### `getBatch()` 批量读取
-
-```ts
-/**
- * @param keys 逻辑键名列表。
- * @param domain 作用域；不传表示全局域。
- */
-const data = m.storageMgr.getBatch<number>(["level", "exp", "coin"]);
-const playerData = m.storageMgr.getBatch<number>(["level", "exp", "coin"], "player_10001");
-```
-
-### `has()` / `remove()` / `removeBatch()` / `keys()` / `clear()`
-
-```ts
-/**
- * @param key 单个逻辑键名。
- * @param keys 逻辑键名列表。
- * @param domain 作用域；不传表示全局域。
- */
-const exists = m.storageMgr.has("coin");
+// 管理
+m.storageMgr.has("coin");
 m.storageMgr.remove("token");
-m.storageMgr.removeBatch(["temp_a", "temp_b"]);
-
-const keys = m.storageMgr.keys();
-m.storageMgr.clear();
-
-const playerKeys = m.storageMgr.keys("player_10001");
+m.storageMgr.keys("player_10001");
 m.storageMgr.clear("player_10001");
 ```
 
-### `clearMemoryCache()` 清空内存缓存
+> 重要数据不要只依赖客户端存储，服务端应做最终校验。
 
-```ts
-/**
- * @param domain 作用域；不传表示清空全部内存缓存，传入时只清理该作用域。
- */
-m.storageMgr.clearMemoryCache();
-m.storageMgr.clearMemoryCache("player_10001");
-```
-
-重要数据不要只依赖客户端存储，服务端仍应做最终校验。
-
-<a id="csvmgr"></a>
+---
 
 ## CSV 模块 CsvMgr
 
-`CsvMgr` 负责加载、解析、缓存和查询 CSV 配表。表缓存按 `bundle://name` 区分，因此不同 bundle 可以使用相同的 `name`；同一个 bundle 内 `name` 必须唯一。
-
-### `load()` 加载 CSV
+负责 CSV 配表加载、解析、缓存和查询。缓存键为 `bundle://name`，不同 bundle 可同名。
 
 ```ts
-/**
- * @param item.name 表逻辑名，用于缓存和后续查询。
- * @param item.path CSV 资源路径，不带扩展名。
- * @param item.bundle 资源所属 bundle。
- * @param options.keyField 主键字段名。
- * @param options.typeRow 是否使用类型行，支持 `true`、`false`、`"auto"`。
- * @param options.fieldRow 是否使用英文字段名行，支持 `true`、`false`、`"auto"`。
- * @param options.skipComments 是否跳过空行和 `#` 注释行。
- * @param options.warnOnConvertError 类型转换失败时是否输出警告。
- */
+// 加载
 const table = await m.csvMgr.load(
-    { name: "test", path: "csv/test", bundle: "resources" },
-    { keyField: "key" },
-);
-```
-
-### `loadBatch()` 批量加载
-
-```ts
-/**
- * @param items 表配置数组，每项包含 `name`、`path`、`bundle`。
- * @param options 共用加载与解析选项，会应用到每张表。
- * @returns 返回对象以 `bundle://name` 为 key，避免不同 bundle 的同名表冲突。
- */
-const tables = await m.csvMgr.loadBatch([
     { name: "hero", path: "csv/hero", bundle: "resources" },
-    { name: "item", path: "csv/item", bundle: "resources" },
-]);
-```
-
-### `parse()` 解析文本
-
-```ts
-/**
- * @param item.name 表逻辑名。
- * @param item.bundle 表所属 bundle。
- * @param text CSV 原始文本。
- * @param options 解析选项；`item` 仍需提供 `name` 和 `bundle`，但 `options` 不包含 `bundle`。
- */
-const table = m.csvMgr.parse(
-    { name: "inline", bundle: "resources" },
-    "id,name\n1,Alice",
     { keyField: "id" },
 );
-```
 
-### 查询和释放
+// 查询
+const row = m.csvMgr.getRow({ name: "hero", bundle: "resources" }, 1001);
+const hero = table?.get(1001);
+table?.forEach((row, index) => m.logMgr.info(index, row));
 
-```ts
-/**
- * @param item.name 表逻辑名。
- * @param item.bundle 表所属 bundle。
- * @param id 主键值。
- */
-const tableRef = { name: "test", bundle: "resources" } as const;
-
-const table = m.csvMgr.getTable(tableRef);
-const row = m.csvMgr.getRow(tableRef, "1001");
-const rows = m.csvMgr.getRows(tableRef);
-const loaded = m.csvMgr.hasTable(tableRef);
-
-m.csvMgr.release(tableRef);
+// 释放
+m.csvMgr.release({ name: "hero", bundle: "resources" });
 m.csvMgr.releaseAll();
 ```
 
-### 表对象接口
+---
+
+## HTTP 模块 HttpMgr
+
+基于 `fetch` 封装 HTTP 请求。模块只导出 `HttpMgr` 类。
+
+**特性：**
+
+- 全局 / 单次 `baseUrl`、默认 headers、超时、query 参数、JSON 请求体
+- header 大小写不敏感覆盖
+- 跨域时自动过滤默认敏感 header（`Authorization`、`Cookie`、`token` 等）
+- Creator 3.8 无 `AbortController`，超时通过计时器实现，底层 `fetch` 无法主动取消
+- 相对路径必须配置 `baseUrl` 或 `options.baseUrl`
+
+### 全局配置
 
 ```ts
-/**
- * @param id 主键值。
- * @param callback 遍历回调，参数为 `row` 和 `index`。
- */
-const table = await m.csvMgr.load(
-    { name: "hero", path: "csv/hero", bundle: "resources" },
-    { keyField: "id" },
+m.httpMgr.configure({
+    baseUrl: "https://api.example.com",
+    timeout: 10000,
+    headers: { Authorization: "Bearer token" },
+});
+
+m.httpMgr.setHeader("X-Client", "cocos");
+```
+
+### 请求
+
+```ts
+const user = await m.httpMgr.get<{ id: number; name: string }>(
+    "/user/info",
+    { id: 10001 },
 );
 
-const hero = table?.get(1001);
-const allHeroes = table?.getAll();
-const hasHero = table?.has(1001);
+await m.httpMgr.post("/user/login", {
+    account: "test",
+    password: "123456",
+});
 
-table?.forEach((row, index) => {
-    m.logMgr.info(index, row);
+// 单次配置（如 CDN 拉取）
+const text = await m.httpMgr.get<string>("/notice.txt", undefined, {
+    baseUrl: "https://cdn.example.com",
+    responseType: "text",
+    useDefaultHeaders: false,
+    timeout: 3000,
 });
 ```
 
-<a id="audiomgr"></a>
+### 错误识别
+
+```ts
+try {
+    await m.httpMgr.post("/user/login", { account: "test" });
+} catch (err) {
+    if (m.httpMgr.isHttpError(err)) {
+        m.logMgr.warn("login failed", err.status, err.body);
+    } else if (m.httpMgr.isTimeoutError(err)) {
+        m.logMgr.warn("login timeout");
+    } else if (m.httpMgr.isJsonParseError(err) || m.httpMgr.isJsonSerializeError(err)) {
+        m.logMgr.error("json error", err);
+    }
+}
+```
+
+> 写操作接口（登录、支付、领奖）不要只依赖客户端超时重试，服务端应使用 `requestId` 等幂等字段。
+
+---
+
+## 广播模块 BroadCastMgr
+
+基于 `@ailhc/broadcast` 管理广播实例。消息类型在 `BroadCastConfig.ts` 中通过全局接口扩展：
+
+```ts
+// BroadCastConfig.ts
+declare global {
+    interface IBroadCastKey extends broadcast.IMsgKey {
+        PLAYER_LOGIN: "PLAYER_LOGIN";
+    }
+    interface IBroadCastValueType extends broadcast.IMsgValueType {
+        PLAYER_LOGIN: { uid: number };
+    }
+}
+```
+
+```ts
+// 创建 / 获取 / 销毁
+const bc = m.broadCastMgr.createBroadCast("game");
+const same = m.broadCastMgr.getBroadCast("game");
+m.broadCastMgr.destroyBroadCast("game");
+
+// 使用 Broadcast API
+bc.on("PLAYER_LOGIN", (data) => {
+    m.logMgr.info("player login", data.uid);
+});
+bc.emit("PLAYER_LOGIN", { uid: 10001 });
+```
+
+模块卸载（`onStop`）时会自动 dispose 全部广播实例。
+
+---
 
 ## 音频模块 AudioMgr
 
-`AudioMgr` 管理 BGM、SFX、音量、静音、任务状态和音频缓存。
-
-SFX 限流会在请求通过限流检查时先占位，避免加载期间的并发窗口；如果加载或播放失败，会回滚占位。
-
-### 池和限流配置
+管理 BGM、SFX、音量、静音、任务状态和音频缓存。SFX 限流在通过检查时先占位，加载或播放失败会回滚。
 
 ```ts
-/**
- * @param sfxPoolMax SFX 音源池最大数量。
- * @param sfxDefaultThrottleMs 同路径 SFX 默认最小播放间隔，单位毫秒。
- */
-m.audioMgr.sfxPoolMax = 24;
-m.audioMgr.sfxDefaultThrottleMs = 80;
-```
-
-### `playBgm()` / `playSfx()` 播放音频
-
-```ts
-/**
- * @param item.path 音频资源路径，不带扩展名。
- * @param item.bundle 资源所属 bundle。
- * @param options.loop 是否循环播放，BGM 默认 `true`，SFX 默认 `false`。
- * @param options.volume 任务音量倍率，范围 `0~1`。
- * @param options.fadeIn 淡入时长，单位秒。
- * @param options.fadeOut 淡出时长，单位秒。
- * @param options.throttleMs SFX 本次播放的限流间隔，单位毫秒。
- * @param options.onComplete 自然播放完成回调。
- * @param options.onStop 被中断停止回调。
- */
+// 播放
 const bgmId = m.audioMgr.playBgm(
     { path: "audio/bgm_main", bundle: "resources" },
     { loop: true, fadeIn: 1 },
 );
-
 const sfxId = m.audioMgr.playSfx(
     { path: "audio/click", bundle: "resources" },
     { throttleMs: 100 },
 );
-```
 
-### `playBgmClip()` / `playSfxClip()` 播放已加载音频
+// 异步播放（返回任务 ID；0=静音，-1=失败，-2=限流）
+const id = await m.audioMgr.playBgmAsync({ path: "audio/bgm_main", bundle: "resources" });
 
-```ts
-/**
- * @param clip 已加载的 `AudioClip`。
- * @param options 播放选项，不包含 `bundle`。
- */
-m.audioMgr.playBgmClip(clip, { loop: true });
-m.audioMgr.playSfxClip(clip);
-```
-
-### 异步播放
-
-```ts
-/**
- * @param item.path 音频资源路径，不带扩展名。
- * @param item.bundle 资源所属 bundle。
- * @param options 播放选项，同 `playBgm()` 或 `playSfx()`。
- * @returns `>0` 表示任务 ID，`0` 表示静音，`-1` 表示失败或超时，`-2` 表示 SFX 被限流；超时会自动停止任务。
- */
-const bgmId = await m.audioMgr.playBgmAsync({ path: "audio/bgm_main", bundle: "resources" });
-const sfxId = await m.audioMgr.playSfxAsync({ path: "audio/click", bundle: "resources" });
-```
-
-### 任务控制
-
-```ts
-/**
- * @param taskId 播放接口返回的任务 ID，必须大于 `0`。
- * @param immediate 是否立即停止并跳过淡出，默认 `false`。
- * @param cb 回调函数；传 `null` 可清除。
- */
-const info = m.audioMgr.getTask(taskId);
-m.audioMgr.pauseTask(taskId);
-m.audioMgr.resumeTask(taskId);
-m.audioMgr.stopTask(taskId);
-
-m.audioMgr.setTaskOnComplete(taskId, () => {
-    m.logMgr.info("audio complete");
-});
-
-m.audioMgr.setTaskOnStop(taskId, () => {
-    m.logMgr.info("audio stopped");
-});
-
-m.audioMgr.stopAllTasks(true);
-m.audioMgr.stopAllSfx();
-```
-
-### BGM 快捷控制
-
-```ts
-/**
- * @remarks `pauseBgm()` / `resumeBgm()` / `stopBgm()` 无参数。
- * @returns `currentBgmTaskId` 返回当前 BGM 任务 ID；`isBgmPlaying()` 返回是否正在播放。
- */
-m.audioMgr.pauseBgm();
-m.audioMgr.resumeBgm();
+// 任务控制
+m.audioMgr.pauseTask(bgmId);
+m.audioMgr.stopTask(bgmId);
 m.audioMgr.stopBgm();
 
-const currentId = m.audioMgr.currentBgmTaskId;
-const isPlaying = m.audioMgr.isBgmPlaying();
-```
-
-### 音量和静音
-
-```ts
-/**
- * @param volume 音量值，范围 `0~1`。
- * @param mute 是否静音。
- */
+// 音量
 m.audioMgr.setBgmVolume(0.8);
 m.audioMgr.setSfxVolume(0.7);
-m.audioMgr.setBgmMute(false);
-m.audioMgr.setSfxMute(false);
 
-const bgmVolume = m.audioMgr.bgmVolume;
-const sfxVolume = m.audioMgr.sfxVolume;
-const bgmMuted = m.audioMgr.bgmMute;
-const sfxMuted = m.audioMgr.sfxMute;
-```
-
-### 预加载和释放缓存
-
-```ts
-/**
- * @param items 音频资源项数组，每项包含 `path`、`bundle`。
- * @param item 单个音频资源项，包含 `path`、`bundle`。
- */
+// 预加载
 await m.audioMgr.preload([
     { path: "audio/click", bundle: "resources" },
-    { path: "audio/win", bundle: "resources" },
 ]);
-m.audioMgr.releaseClip({ path: "audio/click", bundle: "resources" });
 ```
 
-<a id="jsbbridgemgr"></a>
+---
 
 ## 原生桥接 JsbBridgeMgr
 
-`JsbBridgeMgr` 封装原生平台相关能力。非原生平台会对部分接口返回兼容结果。
-
-### 平台和分享
+封装 Android / iOS 原生能力。非原生平台返回兼容结果。
 
 ```ts
-/**
- * @param text 要发送给原生分享能力的文本。
- * @returns `isNativePlatform()` 返回当前是否运行在 Android 或 iOS 原生平台。
- */
 if (m.jsbBridgeMgr.isNativePlatform()) {
     m.jsbBridgeMgr.shareText("hello");
 }
-```
 
-### `getAdjustId()` 获取 Adjust ID
-
-```ts
-/**
- * @param adjustToken Adjust Token。
- * @param timeout 等待原生回调的超时时间，单位秒，默认 `10`。
- */
-const result = await m.jsbBridgeMgr.getAdjustId("adjust-token", 10);
-```
-
-### `getDeviceId()` 获取设备 ID
-
-```ts
-/**
- * @param timeout 等待原生回调的超时时间，单位秒，默认 `5`。
- */
+const adjustResult = await m.jsbBridgeMgr.getAdjustId("adjust-token", 10);
 const deviceId = await m.jsbBridgeMgr.getDeviceId();
 ```
 
-同一个原生事件不支持并发请求，重复调用会直接返回错误，避免回调错配。
+> 同一原生事件不支持并发请求，重复调用会直接返回错误。
 
-<a id="hotupdatemgr"></a>
+---
 
 ## 热更新模块 HotUpdateMgr
 
-`HotUpdateMgr` 用于创建、获取和销毁 bundle 级热更新实例。
-
-### 创建和管理更新器
+Bundle 级热更新管理，底层采用 Manifest + 增量 / Zip 全量下载方案。
 
 ```ts
-/**
- * @param bundleName 要热更新的 bundle 名称。
- * @param updateUrl 热更新服务器基础地址。
- * @param version 目标远程版本号。
- */
 const updater = m.hotUpdateMgr.createHotUpdater(
     "game",
     "https://cdn.example.com",
     "1.0.1",
 );
 
-const sameUpdater = m.hotUpdateMgr.getHotUpdater("game");
-m.hotUpdateMgr.destroyHotUpdater("game");
-```
-
-### 执行更新
-
-```ts
-/**
- * @param onProgress 进度回调，参数 `progress` 范围为 `0~1`。
- * @returns `startUpdate()` 返回 `true` 表示更新成功，`false` 表示失败或被停止。
- */
 updater.onUpdateProgress((progress) => {
     m.logMgr.info("update progress", progress);
 });
@@ -793,39 +553,86 @@ if (updater.checkUpdate()) {
 }
 
 updater.stopUpdate();
-updater.destroy();
+m.hotUpdateMgr.destroyHotUpdater("game");
 ```
 
-生产环境建议额外加入 manifest 签名校验、强制 HTTPS 和资源路径白名单。
+详细设计（Staging 机制、并发控制、断点续传、服务端目录规范等）见 **[热更新逻辑说明](./热更新逻辑说明.md)**。
 
-<a id="dynamic-modules"></a>
+编辑器侧打包上传使用 `extensions/hot-update` 插件。
+
+---
+
+## 协议 Protobuf
+
+项目使用 `egf-protobuf` 管理协议代码生成。
+
+| 路径 | 说明 |
+|------|------|
+| `protobuf/` | 协议源文件与 `epbconfig.js` 配置 |
+| `assets/scripts/protos/dts/` | 生成的 TypeScript 类型 |
+| `assets/scripts/protos/js/` | 生成的 JS 运行时 |
+
+```bash
+npm run egf-pb
+```
+
+网络层依赖 `@ailhc/enet` 已引入，可按业务需要封装连接模块。
+
+---
 
 ## 模块动态加载
 
-`ModuleMgr.ts` 提供模块动态加载和卸载方法。
-
-### `loadModule()` / `unloadModule()`
+`ModuleMgr.ts` 提供运行时模块加载与卸载：
 
 ```ts
-/**
- * @param module 要加载的模块实例。
- * @param moduleName 模块名；不传时会尝试读取 `module.key`。
- */
+import { loadModule, unloadModule } from "./modules/ModuleMgr";
+
 loadModule(customModule, "customModule" as keyof IModuleMap);
 unloadModule("audioMgr");
 ```
 
-卸载模块会触发模块的 `onStop()`，不要随意卸载正在被业务使用的模块。
+卸载会触发模块 `onStop()`，不要卸载正在使用的模块。
 
-<a id="conventions"></a>
+---
 
 ## 开发约定
 
-- 新 UI 必须注册到 `ViewCtrlClassMap`。
-- UI 资源必须使用完整资源项：`path`、`type`、`bundle`。
-- UI 资源由框架统一释放，View 不要在 `onDestroy()` 中重复释放 `getRess()`。
-- `AssetMgr.load()` 和 `AssetMgr.release()` 要按引用次数配对。
-- 业务日志统一使用 `m.logMgr`。
-- 原生桥接接口避免同事件并发调用。
-- 客户端存储不可作为关键资产的唯一可信来源。
-- 热更新上线前应补充签名校验和路径校验。
+### UI
+
+- 新 UI 必须在 `ViewConfig.ts` 扩展类型映射，并使用 `@registTypesToUiMgr` 装饰器
+- 新 UI 必须在 `views/index.ts` 中 import 一次（或热更后 `dynamic import` + `syncViewRegistryToUiMgr()`）
+- 启动日志会输出 `[ViewRegistry] 已注册 View (n): ...` 与 `[ViewRegistry] 同步到 uiMgr (n): ...`
+- 资源项必须包含 `path`、`type`、`bundle`
+- UI 资源由框架统一释放，View 不要在 `onDestroy()` 中重复释放
+
+### 资源
+
+- `AssetMgr.load()` 与 `AssetMgr.release()` 按引用次数配对
+- 音频预加载和 UI 加载走各自模块，不要混用释放逻辑
+
+### 日志
+
+- 业务日志统一使用 `m.logMgr`，不要直接 `console.log`
+
+### 网络与存储
+
+- HTTP 相对路径必须配置 `baseUrl`
+- 客户端存储不可作为关键资产的唯一可信来源
+- 写操作接口需要服务端幂等保障
+
+### 原生与热更新
+
+- JSB 桥接避免同事件并发调用
+- 热更新上线前应补充 manifest 签名校验和路径白名单
+
+---
+
+## 相关文档
+
+| 文档 | 说明 |
+|------|------|
+| [热更新逻辑说明](./热更新逻辑说明.md) | 热更新完整设计与 API |
+| [extensions/hot-update/README.zh-CN.md](../extensions/hot-update/README.zh-CN.md) | 编辑器热更新插件 |
+| [agents/issue-tracker.md](./agents/issue-tracker.md) | Issue 跟踪规范 |
+| [agents/domain.md](./agents/domain.md) | 领域文档规范 |
+| [AGENTS.md](../AGENTS.md) | Agent 技能与协作约定 |

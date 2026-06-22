@@ -1,6 +1,3 @@
-import { LoginView } from "../views/LoginView";
-
-
 declare global {
     /**
      * 界面 Key 映射
@@ -26,13 +23,6 @@ declare global {
     interface IViewUpdateDataMap {
         LoginView: { playerName: string };
     }
-};
+}
 
-
-/**
- * 界面控制器类映射, 用于注册界面控制器类
- */
-export const ViewCtrlClassMap: displayCtrl.CtrlClassMap = {
-    LoginView: LoginView,
-};
-
+export {};
