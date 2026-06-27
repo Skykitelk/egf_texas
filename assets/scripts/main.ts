@@ -1,7 +1,7 @@
-import "./views";
 import { App } from '@ailhc/egf-core';
 import { _decorator, Component, Enum, Node } from 'cc';
 import { m, ModuleLoader } from './modules/ModuleMgr';
+import { registerMainViews } from './views/registerViews';
 const { ccclass, property } = _decorator;
 
 /**
@@ -60,6 +60,7 @@ export class main extends Component {
         const app = new App<IModuleMap>();
         await app.bootstrap([new ModuleLoader(this.node, this.isMountWindow)]);
         app.init();
+        registerMainViews();
         m.logMgr.info("[app] init success");
     };
 
@@ -69,12 +70,12 @@ export class main extends Component {
     };
 
     runTest() {
-        m.uiMgr.showDpc('LoginView', {playerName: "test"});
+        m.uiMgr.showDpc("LoginView", { playerName: "test" });
         this.scheduleOnce(() => {
-            m.uiMgr.hideDpc('LoginView');
+            m.uiMgr.hideDpc("LoginView");
 
             this.scheduleOnce(() => {
-                m.uiMgr.showDpc('LoginView')
+                m.uiMgr.showDpc("LoginView", { playerName: "test" });
             }, 3);
         }, 3);
     }

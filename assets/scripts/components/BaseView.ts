@@ -1,77 +1,61 @@
 import { instantiate, Node, Prefab, tween, Tween, UIOpacity, Vec3 } from "cc";
 import { NodeCtrl } from "@ailhc/dpctrl-c3d";
 import { LayerType } from "../configs/LayerConfig";
-import { getViewCtrlMeta, IViewCtrlMeta } from "../configs/ViewRegistry";
+import { getViewConfig, IViewItem, ViewConfigMap } from "../configs/ViewConfig";
 import { m } from "../modules/ModuleMgr";
 
 const SHOW_DURATION = 0.25;
 const HIDE_DURATION = 0.2;
-const DEFAULT_VIEW_BUNDLE = "resources";
 
-type ViewCtrlClass = typeof BaseView & Partial<IViewCtrlMeta>;
+type ViewCtrlWithTypeKey = { typeKey?: string };
 
 /**
  * 基础视图类。所有视图都应该继承自此基类。
  */
 export abstract class BaseView extends NodeCtrl {
-
-    isShowing = false;
+    /**
+     * 面板节点
+     */
     protected panel: Node;
+    /**
+     * 遮罩透明度
+     */
     protected maskOpacity: UIOpacity;
+    /**
+     * 视图配置（首次解析后缓存）
+     */
+    protected viewConfig: IViewItem | null = null;
 
     /**
-     * 默认资源列表：读取装饰器写入的 prefabUrl / viewBundle
-     * 子类可 override 追加其他资源
+     * 显示界面前需要加载的资源列表（子类可 override 追加其他资源）
+     */
+    protected ressItems: IViewRessItem[] = [];
+    /**
+     * 是否正在播放显示动画
+     */
+    isShowing = false;
+
+    /**
+     * 获取显示界面前需要加载的资源列表
+     * @returns 资源列表
      */
     getRess(): IViewRessItem[] {
-        const meta = this._getViewMeta();
-        if (!meta?.prefabUrl) {
+        super.getRess();
+        const config = this._getViewConfig();
+        if (!config?.path) {
             return [];
         }
-        return [{
-            path: meta.prefabUrl,
+        this.ressItems = [{
+            path: config.path,
             type: Prefab,
-            bundle: meta.viewBundle ?? DEFAULT_VIEW_BUNDLE,
+            bundle: config.bundle
         }];
+        return this.ressItems;
     }
 
-    /**
-     * 从 AssetMgr 缓存实例化 prefab 并挂载到层级
-     * @returns 是否挂载成功
-     */
-    protected mountPrefabView(): boolean {
-        const meta = this._getViewMeta();
-        if (!meta?.prefabUrl) {
-            m.logMgr?.error(`[${meta?.typeKey ?? this.constructor.name}] 未配置 prefabUrl`);
-            return false;
-        }
-
-        const bundle = meta.viewBundle ?? DEFAULT_VIEW_BUNDLE;
-        const layer = meta.viewLayer ?? LayerType.UI;
-        const prefab = m.assetMgr.get({
-            path: meta.prefabUrl,
-            type: Prefab,
-            bundle,
-        });
-
-        if (!prefab) {
-            m.logMgr?.error(
-                `[${meta.typeKey}] prefab 未加载: ${bundle}://${meta.prefabUrl}`,
-            );
-            return false;
-        }
-
-        this.node = instantiate(prefab);
-        m.layerMgr.addNodeToLayer(this.node, layer);
-        this.bindAnimNodes();
-        return true;
-    }
-
-    /** onInit 里 instantiate 之后调用 */
-    protected bindAnimNodes(panelName = "panel", maskName = "mask") {
-        this.panel = this.node.getChildByName(panelName);
-        const mask = this.node.getChildByName(maskName);
-        this.maskOpacity = mask?.getComponent(UIOpacity) ?? mask?.addComponent(UIOpacity);
+    onInit(config?: displayCtrl.IInitConfig<any, any>) {
+        super.onInit(config);
+        this._mountPrefabView();
     }
 
     onShow(config?: displayCtrl.IShowConfig) {
@@ -84,7 +68,8 @@ export abstract class BaseView extends NodeCtrl {
     }
 
     onHide() {
-        if (!this.node?.active) {
+        if (!this.node || !this.node.active) {
+            super.onHide();
             return;
         }
         Tween.stopAllByTarget(this.panel);
@@ -95,12 +80,78 @@ export abstract class BaseView extends NodeCtrl {
         });
     }
 
-    protected _getViewMeta(): IViewCtrlMeta | null {
-        //@ts-ignore
-        return getViewCtrlMeta(this.constructor as ViewCtrlClass);
+    /**
+     * 从 AssetMgr 缓存实例化 prefab 并挂载到层级
+     * @returns 是否挂载成功
+     */
+    private _mountPrefabView(): boolean {
+        const config = this._getViewConfig();
+        if (!config?.path) {
+            m.logMgr?.error(`[${config?.name ?? this.constructor.name}] 未配置 prefab path`);
+            return false;
+        }
+
+        const bundle = config.bundle;
+        if (!bundle) {
+            m.logMgr?.error(`[${config?.name ?? this.constructor.name}] 未配置 prefab bundle`);
+            return false;
+        }
+
+        const layer = config.layer ?? LayerType.UI;
+        const prefab = m.assetMgr.get({
+            path: config.path,
+            type: Prefab,
+            bundle,
+        });
+
+        if (!prefab) {
+            m.logMgr?.error(
+                `[${config.name}] prefab 未加载: ${bundle}://${config.path}`,
+            );
+            return false;
+        }
+
+        this.node = instantiate(prefab);
+        m.layerMgr.addNodeToLayer(this.node, layer);
+        this._bindAnimNodes();
+        return true;
     }
 
-    protected _playShowAnim(onComplete?: () => void) {
+    private _bindAnimNodes(panelName = "panel", maskName = "mask") {
+        this.panel = this.node.getChildByName(panelName);
+        const mask = this.node.getChildByName(maskName);
+        this.maskOpacity = mask?.getComponent(UIOpacity) ?? mask?.addComponent(UIOpacity);
+    }
+
+    private _getTypeKey(): keyof IViewKeyMap | null {
+        const insKey = this.key;
+        if (insKey && insKey in ViewConfigMap) {
+            return insKey as keyof IViewKeyMap;
+        }
+        const ctorKey = (this.constructor as ViewCtrlWithTypeKey).typeKey;
+        if (ctorKey && ctorKey in ViewConfigMap) {
+            return ctorKey as keyof IViewKeyMap;
+        }
+        return null;
+    }
+
+    private _getViewConfig(): IViewItem | null {
+        if (this.viewConfig) {
+            return this.viewConfig;
+        }
+        const typeKey = this._getTypeKey();
+        if (!typeKey) {
+            return null;
+        }
+        this.viewConfig = getViewConfig(typeKey);
+        if (!this.viewConfig) {
+            m.logMgr?.error(`[${typeKey}] 未找到视图配置`);
+            return null;
+        }
+        return this.viewConfig;
+    }
+
+    private _playShowAnim(onComplete?: () => void) {
         if (!this.panel) {
             onComplete?.();
             return;
@@ -122,7 +173,7 @@ export abstract class BaseView extends NodeCtrl {
         }
     }
 
-    protected _playHideAnim(onComplete?: () => void) {
+    private _playHideAnim(onComplete?: () => void) {
         if (!this.panel) {
             onComplete?.();
             return;
