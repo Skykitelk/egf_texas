@@ -1,4 +1,4 @@
-import { SceneLayer } from "../customLayers/SceneLayer";
+import { CustomLayer } from "../customLayers/CustomLayer";
 
 /**
  * 层级类型枚举
@@ -29,12 +29,14 @@ const LayerNameMap = {
     [LayerType.TOP]: "TOP",
 };
 
-
+/**
+ * 层级类映射
+ */
 export const LayerClassMap: Map<string, layer.LayerClassType> = new Map(
     [
-        [LayerNameMap[LayerType.SCENE], SceneLayer],
-        [LayerNameMap[LayerType.UI], SceneLayer],
-        [LayerNameMap[LayerType.POP], SceneLayer],
-        [LayerNameMap[LayerType.TOP], SceneLayer],
+        [LayerNameMap[LayerType.SCENE], CustomLayer],
+        [LayerNameMap[LayerType.UI], CustomLayer],
+        [LayerNameMap[LayerType.POP], CustomLayer],
+        [LayerNameMap[LayerType.TOP], CustomLayer],
     ]
 );

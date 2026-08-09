@@ -2,8 +2,10 @@ import { director, Director, Node, NodeEventType, UITransform } from 'cc';
 
 /**
  * 场景层：作为 NodeCtrl 界面的父节点，随子节点可见性自动显隐。
+ * 自定义层级类，用于实现层级管理器
+ * @implements layer.ILayer
  */
-export class SceneLayer extends Node implements layer.ILayer {
+export class CustomLayer extends Node implements layer.ILayer {
 
     protected _layerType = 0;
     protected _layerMgr: layer.IMgr<Node>;
@@ -71,7 +73,6 @@ export class SceneLayer extends Node implements layer.ILayer {
         this.addChild(node);
         this._bindChildVisibility(node);
         this._syncLayerVisibility();
-        // onNodeAdd 与 NodeCtrl.onShow 常在同一帧内连续执行，延后一帧再同步
         this._deferSyncLayerVisibility();
     }
 
@@ -143,7 +144,6 @@ export class SceneLayer extends Node implements layer.ILayer {
         if (this.children.length === 0) {
             return true;
         }
-        // 与 NodeCtrl.onHide/onShow 一致，以 node.active 为准
         return this.children.every((child) => !child.active);
     }
 

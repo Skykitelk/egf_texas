@@ -9,7 +9,6 @@ import { StorageMgr } from "./StorageMgr";
 import { CsvMgr } from "./CsvMgr";
 import { JsbBridgeMgr } from "./JsbBridgeMgr";
 import { AssetMgr } from "./AssetMgr";
-import { syncViewRegistryToUiMgr, validateViewRegistry } from "../configs/ViewRegistry";
 import "../configs/ViewConfig";
 import { BroadCastMgr } from "./BroadCastMgr";
 import { HttpMgr } from "./HttpMgr";
@@ -165,9 +164,6 @@ export class ModuleLoader implements egf.IBootLoader {
          * 日志管理器（View 注册校验需要 logMgr，先创建实例）
          */
         const logMgr = new LogMgr();
-
-        validateViewRegistry(logMgr);
-        syncViewRegistryToUiMgr(uiMgr, logMgr);
 
         /**
          * 层级管理器

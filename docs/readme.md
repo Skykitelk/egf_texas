@@ -8,6 +8,19 @@
 - [架构与启动](#架构与启动)
 - [全局模块速查](#全局模块速查)
 - [UI 开发](#ui-开发)
+  - [概述](#概述)
+  - [架构与职责划分](#架构与职责划分)
+  - [启动与注册流程](#启动与注册流程)
+  - [注册机制](#注册机制)
+  - [show / hide 生命周期](#show--hide-生命周期)
+  - [NodeCtrl 状态机](#nodectrl-状态机)
+  - [BaseView 行为说明](#baseview-行为说明)
+  - [资源加载与释放](#资源加载与释放)
+  - [层级挂载](#层级挂载)
+  - [新增 View 步骤](#新增-view-步骤)
+  - [子 bundle / 热更注册](#子-bundle--热更注册)
+  - [显示 / 隐藏 API](#显示--隐藏-api)
+  - [资源声明规范](#资源声明规范)
 - [资源模块 AssetMgr](#资源模块-assetmgr)
 - [层级模块 LayerMgr](#层级模块-layermgr)
 - [日志模块 LogMgr](#日志模块-logmgr)
@@ -61,14 +74,17 @@ EGF Texas 是基于 **Cocos Creator 3.8.8** 的游戏客户端项目，使用 `@
 egf_texas/
 ├── assets/
 │   ├── scene/main.scene          # 主场景，挂载 main 组件
-│   ├── resources/                # 默认 bundle 资源
+│   ├── resources/                # 默认 bundle（resources）资源
+│   ├── bundles/                  # 子 bundle（如 lobby）
+│   │   └── lobby/
+│   │       └── views/            # LobbyView + initView.ts（registerLobbyViews）
 │   └── scripts/
 │       ├── main.ts               # 入口组件
 │       ├── modules/              # 核心模块（通过 m.xxxMgr 访问）
-│       ├── views/                # UI 控制器
-│       ├── components/BaseView.ts # UI 基类（弹窗动画）
+│       ├── views/                # 主包 UI 控制器 + registerViews.ts
+│       ├── components/BaseView.ts # UI 基类（配置读取、挂载、弹窗动画）
 │       ├── customLayers/         # 层级实现（SceneLayer）
-│       ├── configs/              # View / Layer / BroadCast 配置
+│       ├── configs/              # ViewConfig / Layer / BroadCast 配置
 │       ├── protos/               # Protobuf 生成产物
 │       └── utils/                # 工具函数
 ├── extensions/hot-update/        # 编辑器热更新面板插件
@@ -88,13 +104,15 @@ egf_texas/
 2. `main.onLoad()` → `initApp()` 创建 `App<IModuleMap>` 并 bootstrap
 3. `ModuleLoader` 注册全部模块，赋值全局 `m`
 4. `app.init()` 触发各模块 `onInit()`
-5. `setupModule()` 配置日志级别与环境
-6. 业务代码通过 `m.xxxMgr` 访问模块
+5. `registerMainViews()` 将主包 View 注册到 `m.uiMgr`
+6. `setupModule()` 配置日志级别与环境
+7. 业务代码通过 `m.xxxMgr` 访问模块
 
 ```ts
 const app = new App<IModuleMap>();
 await app.bootstrap([new ModuleLoader(this.node, this.isMountWindow)]);
 app.init();
+registerMainViews();
 
 m.logMgr.setMinLevel(this.logLevel);
 m.logMgr.setProduction(this.appEnv === EAppEnv.PROD);
@@ -140,102 +158,273 @@ m.logMgr.setProduction(this.appEnv === EAppEnv.PROD);
 
 ## UI 开发
 
-UI 使用 `@ailhc/dpctrl-c3d` 的 `DpcMgr` + `NodeCtrl`。新增界面四步：**定义类型 → 装饰器注册 View → 加入 views/index → show/hide 使用**。
+### 概述
 
-相关文件：
+UI 基于 `@ailhc/dpctrl-c3d` 的 **`DpcMgr`（运行时调度）+ `NodeCtrl`（控制器基类）** 模式。业务通过全局 `m.uiMgr` 显示 / 隐藏界面，每个界面对应一个继承 `BaseView` 的控制器类。
+
+新增界面四步：**ViewConfig.ts 配类型与资源 → 创建 View 类 → bootstrap 后 registerXxxViews → show / hide**。
+
+核心设计原则：
+
+| 原则 | 说明 |
+|------|------|
+| 配置集中 | 全量 `ViewConfigMap` 在 `ViewConfig.ts`，含主包与各子 bundle View |
+| 注册分散 | 各 bundle 独立 `registerXxxViews()`，bootstrap / loadBundle 后显式调用 |
+| 注册与加载解耦 | `uiMgr.regist` 只登记控制器类；prefab 在 **showDpc 时** 才加载 |
+| 资源统一托管 | 加载 / 释放由 `ModuleLoader` 对接 `assetMgr`，View 通过 `getRess()` 声明 |
+
+### 架构与职责划分
+
+```
+ViewConfig.ts（全量配置 + getViewConfig）
+       │
+       ├─ BaseView.getRess / _mountPrefabView（读 ViewConfigMap）
+       │
+       ├─ views/registerViews.ts → registerMainViews() → uiMgr.regist
+       └─ bundles/lobby/views/initView.ts → registerLobbyViews() → uiMgr.regist
+```
 
 | 文件 | 职责 |
 |------|------|
-| `configs/ViewConfig.ts` | 全局 UI 类型映射 |
-| `configs/ViewRegistry.ts` | `@registTypesToUiMgr` 装饰器与注册表 |
-| `views/index.ts` | 聚合 import，触发装饰器执行 |
-| `components/BaseView.ts` | UI 基类（prefab 挂载、默认 getRess、弹窗动画） |
+| `configs/ViewConfig.ts` | 类型映射 + 全量 `ViewConfigMap` + `getViewConfig()` |
+| `views/registerViews.ts` | 主包 `registerMainViews()` |
+| `bundles/{name}/views/initView.ts` | 子 bundle `registerXxxViews()` |
+| `components/BaseView.ts` | 读配置、`getRess()`、挂载 prefab、弹窗动画 |
 | `configs/LayerConfig.ts` | 层级枚举 |
-| `views/LoginView.ts` | 示例 |
+| `views/LoginView.ts` | 主包示例 View |
+| `bundles/lobby/views/LobbyView.ts` | 子 bundle 示例 View |
 
-启动时 `ModuleLoader` 会调用 `validateViewRegistry()` 校验装饰器注册结果，再执行 `syncViewRegistryToUiMgr()` 同步到 `uiMgr`。
+### 启动与注册流程
 
-### 1. 定义 UI 类型
+```
+main.ts
+  ├─ app.bootstrap(ModuleLoader)  → 创建 uiMgr / assetMgr / layerMgr，赋值 m
+  ├─ app.init()
+  └─ registerMainViews()          → uiMgr.regist(LoginView, "LoginView")
 
-在 `ViewConfig.ts` 中扩展全局类型映射，使 `showDpc()` / `onInit()` / `onShow()` 获得类型提示：
+子 bundle（如 lobby）
+  ├─ loadBundle("lobby")
+  └─ registerLobbyViews()         → uiMgr.regist(LobbyView, "LobbyView")
+```
+
+> **注意**：不得在模块顶层直接 `m.uiMgr.regist`（bootstrap 前 `m` 为空）。必须在 bootstrap 完成后调用注册函数。
+
+### 注册机制
+
+#### uiMgr.regist — 登记控制器
+
+`m.uiMgr.regist(CtrlClass, key)` 将控制器类登记到 `DpcMgr`，`key` 须与 `IViewKeyMap` / `ViewConfigMap` 中的键一致。注册时**不加载 prefab**，也不读取 `ViewConfigMap`。
+
+bundle 与 prefab 路径的一致性由 `ViewConfigMap` 配置 + 开发约定保证，当前无运行时 bundle 校验函数。
+
+#### registerMainViews — 主包
+
+```ts
+// views/registerViews.ts
+import { m } from "../modules/ModuleMgr";
+import { LoginView } from "./LoginView";
+
+export function registerMainViews(): void {
+    const uiMgr = m.uiMgr;
+    if (!uiMgr) {
+        m.logMgr?.error("[View] uiMgr 未初始化");
+        return;
+    }
+    uiMgr.regist(LoginView, "LoginView");
+    m.logMgr?.info("[View] 主包 View 已注册");
+}
+```
+
+```ts
+// main.ts（bootstrap + app.init 之后）
+registerMainViews();
+```
+
+#### registerLobbyViews — 子 bundle 示例
+
+```ts
+// bundles/lobby/views/initView.ts
+import { m } from "../../../scripts/modules/ModuleMgr";
+import { LobbyView } from "./LobbyView";
+
+export function registerLobbyViews(): void {
+    m.uiMgr.regist(LobbyView, "LobbyView");
+    m.logMgr?.info("[View] lobby View 已注册");
+}
+```
+
+> **注意**：`regist` ≠ prefab 加载。`BaseView` 通过实例 `key`（及构造函数 `typeKey` 兜底）读 `ViewConfigMap` 获取 path / bundle / layer。
+
+### show / hide 生命周期
+
+```
+showDpc("LoginView", onShowData, showedCb?, onInitData?)
+  │
+  ├─ needShow = true
+  ├─ [首次] loadRes ← getRess() 声明的 prefab 列表
+  │         └─ ModuleLoader.loadResHandler → assetMgr.loadBatch
+  │
+  ├─ [首次] onInit(onInitData) → _mountPrefabView()
+  │         └─ assetMgr.get(prefab) → instantiate → layerMgr.addNodeToLayer
+  │
+  ├─ onShow(onShowData) → BaseView 播放 show 动画 → showEndCb / showedCb
+  │
+hideDpc("LoginView")
+  │
+  ├─ needShow = false
+  ├─ onHide() → BaseView 播放 hide 动画 → super.onHide()
+  │
+  └─ [destroyDpc 时] releaseRes ← getRess() → assetMgr.release（逐项）
+```
+
+| 回调 | 触发时机 | 典型用途 |
+|------|----------|----------|
+| `onInit` | 控制器首次创建，资源加载完成后 | 实例化 prefab、绑定节点、读取 init 数据 |
+| `onShow` | 每次显示 | 刷新 UI、播放动画、处理 show 数据 |
+| `onHide` | 每次隐藏 | 停止动画、清理临时状态 |
+| `onDestroy` | 控制器销毁 | 解绑事件；**不要**在此手动 release 资源 |
+
+### NodeCtrl 状态机
+
+`NodeCtrl`（`BaseView` 的基类）实例上有一组状态字段，主要由 `DpcMgr` 在 `showDpc` / `hideDpc` / `destroyDpc` 流程中维护：
+
+| 字段 | 维护方 | 含义 |
+|------|--------|------|
+| `needLoad` | DpcMgr | 本次 show 需要先走资源加载 |
+| `isLoading` | DpcMgr | 正在执行 `getRess()` → `loadRes` |
+| `isLoaded` | DpcMgr | prefab 等资源已加载完成 |
+| `isInited` | DpcMgr | 已调用过 `onInit`（仅首次） |
+| `isShowed` | DpcMgr | 当前处于 show 生命周期（`onShow` 已调且未 hide） |
+| `needShow` | DpcMgr | 异步 load 期间标记「load 完成后还要 show」；hide 时置 false |
+| `isShowing` | 业务层 | `BaseView` 动画播放期间为 true；**DpcMgr 不读写** |
+
+典型首次 show 流程：
+
+```
+showDpc → needShow=true → needLoad=true → isLoading → isLoaded
+       → isInited → onInit → onShow → isShowed=true → needShow=false
+
+hideDpc → needShow=false → onHide → isShowed=false
+        （isInited / isLoaded 保持，实例可复用）
+
+destroyDpc → 重置 isLoaded / isInited / needShow，并 releaseRes
+```
+
+查询 API：`m.uiMgr.isLoading(key)` / `isLoaded` / `isInited` / `isShowed` 即读取对应实例字段。
+
+### BaseView 行为说明
+
+`BaseView` 在 `NodeCtrl` 之上封装了配置读取、prefab 挂载和弹窗动画：
+
+| 能力 | 说明 |
+|------|------|
+| `viewConfig` | 首次解析后缓存，避免重复查 `ViewConfigMap` |
+| `getRess()` | 从 `ViewConfigMap` 生成 prefab 资源项，写入 `ressItems` 并返回；子类可 override 追加资源 |
+| `_getTypeKey()` | 优先用实例 `this.key`，其次构造函数静态 `typeKey`，匹配 `ViewConfigMap` 键 |
+| `onInit` | 调用 `super.onInit` 后自动 `_mountPrefabView()` |
+| `_mountPrefabView()` | `assetMgr.get` 取已加载 prefab → `instantiate` → `layerMgr.addNodeToLayer` |
+| `onShow` | 设置 `isShowing=true`，播放缩放 + 遮罩动画，结束后 `isShowing=false` 并回调 `showEndCb` |
+| `onHide` | 若 node 不存在或未 active，直接 `super.onHide()`；否则播放 hide 动画后再 `super.onHide()` |
+
+子类一般只需 `super.onInit(config)` / `super.onShow(config)` / `super.onHide()`，按需追加业务逻辑。
+
+### 资源加载与释放
+
+`uiMgr.init()` 注入的两个 handler 位于 `ModuleMgr.ts`：
+
+| Handler | 职责 |
+|---------|------|
+| `loadResHandler` | 读取 `config.ress`（来自 `getRess()`），调用 `assetMgr.loadBatch`；失败 rollback；可选 `showLoading` |
+| `releaseResHandler` | 控制器销毁时遍历 `ctrlIns.getRess()`，逐项 `assetMgr.release` |
+
+资源项格式（`IViewRessItem`）必须包含 **`path`、`type`、`bundle`** 三项，不支持纯字符串路径。
+
+### 层级挂载
+
+`ViewConfigMap` 中的 `layer` 指定挂载层：
+
+| 层级 | 枚举 | 用途 |
+|------|------|------|
+| 场景层 | `LayerType.SCENE` | 登录、大厅、游戏场景 |
+| 常规 UI | `LayerType.UI` | 背包、商城、设置 |
+| 弹窗层 | `LayerType.POP` | 活动、礼包 |
+| 最顶层 | `LayerType.TOP` | 引导、提示、公告 |
+
+`_mountPrefabView()` 内部调用 `m.layerMgr.addNodeToLayer(this.node, layer)`。所有层级当前使用 `SceneLayer` 实现，会根据子节点 `active` 自动显隐。详见 [层级模块 LayerMgr](#层级模块-layermgr)。
+
+### 新增 View 步骤
+
+#### 1. 定义 UI 类型与资源配置
+
+在 `ViewConfig.ts` 中扩展全局类型映射，并加入 `ViewConfigMap`：
 
 ```ts
 declare global {
     interface IViewKeyMap {
         LoginView: "LoginView";
+        ShopView: "ShopView";
     }
     interface IViewInitDataMap {
         LoginView: { playerName: string };
+        ShopView: { shopId: number };
     }
-    interface IViewShowDataMap {
-        LoginView: { playerName: string };
-    }
-    interface IViewUpdateDataMap {
-        LoginView: { playerName: string };
-    }
+    // IViewShowDataMap / IViewUpdateDataMap 同理
 }
+
+export const ViewConfigMap: Record<keyof IViewKeyMap, IViewItem> = {
+    LoginView: {
+        name: "LoginView",
+        path: "login/LoginView",
+        bundle: "resources",
+        layer: LayerType.UI,
+    },
+    ShopView: {
+        name: "ShopView",
+        path: "shop/ShopView",
+        bundle: "resources",
+        layer: LayerType.UI,
+    },
+};
 ```
 
-### 2. 创建控制器并注册
-
-`@registTypesToUiMgr` 会自动：写入 `typeKey`、写入 View 注册表、配置 prefab 元数据；启动或热更后调用 `syncViewRegistryToUiMgr()` 时再同步到 `uiMgr`。
-
-装饰器第二参数可选，传入后 `BaseView.getRess()` 和 `mountPrefabView()` 可直接使用：
+#### 2. 创建控制器类
 
 ```ts
-import { LayerType } from "../configs/LayerConfig";
-import { registTypesToUiMgr } from "../configs/ViewRegistry";
 import { BaseView } from "../components/BaseView";
 
-@registTypesToUiMgr("LoginView", {
-    prefabUrl: "login/LoginView",
-    bundle: "resources",       // 默认 resources
-    layer: LayerType.UI,       // 默认 LayerType.UI
-})
 export class LoginView extends BaseView {
-
-    onInit(config: displayCtrl.IInitConfig<"LoginView", IViewInitDataMap>) {
-        super.onInit(config);
-        this.mountPrefabView();  // 实例化 prefab 并挂载到层级
-    }
+    // onInit 中 BaseView 已自动 _mountPrefabView，按需 override 业务逻辑
 }
 ```
 
-- 无需手写 `static typeKey` 和 `ViewCtrlClassMap`
-- 无需手写 `getRess()`（装饰器配置了 prefab 时由 `BaseView` 自动生成）
-- 类名与 `viewName` 不一致时会在控制台警告
+#### 3. 注册到 uiMgr
 
-### 3. 加入 views/index.ts
-
-新增 View 后必须在 `assets/scripts/views/index.ts` 中 import，否则装饰器不会执行、启动时无法注册：
+**主包** — 在 `views/registerViews.ts` 的 `registerMainViews()` 中追加：
 
 ```ts
-import "./LoginView";
-import "./ShopView"; // 新增
+uiMgr.regist(ShopView, "ShopView");
 ```
 
-### 热更 / 延迟注册 View
+**子 bundle** — 在 `bundles/{name}/views/initView.ts` 的 `registerXxxViews()` 中追加，loadBundle 后调用。
 
-`@registTypesToUiMgr` 在 **模块 import 时** 写入 `ViewCtrlRegistry`，与 `uiMgr.regist` 时机无关。热更 bundle 中的 View 可按以下流程注册：
+### 子 bundle / 热更注册
+
+配置已在主包 `ViewConfig.ts` 中声明；子 bundle 只负责提供控制器类并注册：
 
 ```ts
-import { syncViewRegistryToUiMgr } from "../configs/ViewRegistry";
-
-// 1. 加载热更 View 模块（装饰器在此刻写入注册表）
-await import("../views/ShopView");
-
-// 2. 将尚未注册的控制器同步到 uiMgr（可省略 uiMgr 参数，默认读 m.uiMgr）
-syncViewRegistryToUiMgr();
-
-// 3. 正常 showDpc（资源在 show 时加载，不在 regist 时）
-m.uiMgr.showDpc("ShopView", { playerName: "test" });
+await loadBundle("lobby");
+const { registerLobbyViews } = await import(/* lobby bundle 路径 */ "./initView");
+registerLobbyViews();
+m.uiMgr.showDpc("LobbyView", { playerName: "test" });
 ```
 
-- 跨 bundle 的 prefab：装饰器传 `bundle: "game"` 即可
-- `syncViewRegistryToUiMgr(uiMgr, logMgr)` 会跳过已注册的 key，可重复调用
-- 启动时 `ModuleLoader` 内部同样走 `syncViewRegistryToUiMgr(uiMgr, logMgr)`
+要点：
 
-### 4. 显示 / 隐藏
+- 全量配置在 `ViewConfig.ts`，方便统一查阅
+- 注册脚本各 bundle 独立维护，bootstrap / loadBundle 后显式调用
+- 热更替换控制器类时：先 `destroyDpc(key)` 销毁旧实例并释放资源，再 `uiMgr.regist(NewViewClass, key)` 重新登记
+
+### 显示 / 隐藏 API
 
 ```ts
 m.uiMgr.showDpc(
@@ -599,11 +788,11 @@ unloadModule("audioMgr");
 
 ### UI
 
-- 新 UI 必须在 `ViewConfig.ts` 扩展类型映射，并使用 `@registTypesToUiMgr` 装饰器
-- 新 UI 必须在 `views/index.ts` 中 import 一次（或热更后 `dynamic import` + `syncViewRegistryToUiMgr()`）
-- 启动日志会输出 `[ViewRegistry] 已注册 View (n): ...` 与 `[ViewRegistry] 同步到 uiMgr (n): ...`
-- 资源项必须包含 `path`、`type`、`bundle`
-- UI 资源由框架统一释放，View 不要在 `onDestroy()` 中重复释放
+详见 [UI 开发](#ui-开发)。要点：
+
+- 新 UI：`ViewConfig.ts` 扩展类型与 `ViewConfigMap` → 创建 View 类 → `registerXxxViews()` 内 `uiMgr.regist`（bootstrap / loadBundle 后调用）
+- 子 bundle：`loadBundle` → `registerXxxViews()`
+- 资源由框架统一释放，View 不要在 `onDestroy()` 中重复 release
 
 ### 资源
 
