@@ -1,3 +1,8 @@
 {
-  "disable-packages": {}
+  "disable-packages": {
+    "D:\\Projects\\egf_texas\\extensions\\h5-bundle-zipper": {
+      "name": "h5-bundle-zipper",
+      "time": 1786527207052
+    }
+  }
 }
