@@ -1,0 +1,125 @@
+.bz-hidden {
+    display: none !important;
+}
+
+#bz-runtime-update-modal,
+#bz-runtime-update-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+}
+
+#bz-runtime-update-modal {
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.bz-modal-panel {
+    width: min(92vw, 360px);
+    background: #1f1f1f;
+    color: #fff;
+    border-radius: 12px;
+    padding: 24px 20px 20px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.bz-modal-message {
+    margin: 0 0 20px;
+    font-size: 16px;
+    line-height: 1.45;
+}
+
+.bz-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.bz-modal-actions button {
+    flex: 1;
+    min-height: 44px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#bz-update-now {
+    background: #f0c040;
+    color: #1a1a1a;
+}
+
+#bz-runtime-update-overlay {
+    background: rgba(10, 10, 10, 0.88);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.bz-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255, 255, 255, 0.18);
+    border-top-color: #f0c040;
+    border-radius: 50%;
+    animation: bz-spin 0.9s linear infinite;
+}
+
+@keyframes bz-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.bz-update-status {
+    margin: 18px 0 12px;
+    font-size: 15px;
+}
+
+.bz-update-progress {
+    width: min(70vw, 280px);
+    height: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.bz-update-progress span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: #f0c040;
+    transition: width 0.2s ease;
+}
+
+#bz-update-retry {
+    margin-top: 20px;
+    min-width: 140px;
+    min-height: 44px;
+    padding: 0 24px;
+    border: none;
+    border-radius: 8px;
+    background: #f0c040;
+    color: #1a1a1a;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+#bz-runtime-update-overlay.bz-update-failed .bz-update-status {
+    max-width: min(85vw, 320px);
+    text-align: center;
+    line-height: 1.45;
+    color: #ffb4b4;
+}

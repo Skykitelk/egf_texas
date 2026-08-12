@@ -1,0 +1,25 @@
+{
+  "name": "web_bundle_zipper",
+  "title": "Web Bundle Zipper",
+  "package_version": 2,
+  "version": "1.0.13",
+  "author": "nickerry",
+  "description": "i18n:web_bundle_zipper.description",
+  "contributions": {
+    "builder": "./dist/builder.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dist": "node -e \"require('fs').copyFileSync('node_modules/fflate/umd/index.js','files/fflate.min.js')\" && tsc"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^5.0.4",
+    "@types/node": "^14.5.2",
+    "typescript": "^5.3.3"
+  },
+  "_storeId": "4992d7e92d94b171a301386138f10860",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "fflate": "^0.8.3"
+  }
+}
