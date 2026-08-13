@@ -29,19 +29,6 @@ export function removeDir(dirPath: string) {
     }
 }
 
-/** 压缩目录内文件，可选压缩后删除源文件 */
-export async function zipDirectoryWithDelete(
-    sourceDir: string,
-    outZipPath: string,
-    prefixInZip: string,
-    deleteAfterZip: boolean,
-) {
-    await zipDirectoryToFile(sourceDir, outZipPath, prefixInZip);
-    if (deleteAfterZip) {
-        removeDir(sourceDir);
-    }
-}
-
 /** 生成 web.zip（不含 assets 目录）与 cdn.zip（仅 assets） */
 export async function zipPublishSplit(dest: string, webZipPath: string, cdnZipPath: string) {
     await zipWebWithoutAssets(dest, webZipPath);

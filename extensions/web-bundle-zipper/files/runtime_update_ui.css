@@ -3,7 +3,8 @@
 }
 
 #bz-runtime-update-modal,
-#bz-runtime-update-overlay {
+#bz-runtime-update-overlay,
+#bz-init-bundles-loading {
     position: fixed;
     inset: 0;
     z-index: 100000;
@@ -56,7 +57,8 @@
     color: #1a1a1a;
 }
 
-#bz-runtime-update-overlay {
+#bz-runtime-update-overlay,
+#bz-init-bundles-loading {
     background: rgba(10, 10, 10, 0.88);
     display: flex;
     flex-direction: column;
@@ -81,12 +83,21 @@
     }
 }
 
-.bz-update-status {
+.bz-update-status,
+.bz-init-status {
     margin: 18px 0 12px;
     font-size: 15px;
 }
 
-.bz-update-progress {
+.bz-init-detail {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    min-height: 1.2em;
+}
+
+.bz-update-progress,
+.bz-init-progress {
     width: min(70vw, 280px);
     height: 6px;
     background: rgba(255, 255, 255, 0.15);
@@ -94,7 +105,8 @@
     overflow: hidden;
 }
 
-.bz-update-progress span {
+.bz-update-progress span,
+.bz-init-progress span {
     display: block;
     height: 100%;
     width: 0;

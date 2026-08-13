@@ -14,8 +14,10 @@ exports.load = load;
 exports.unload = unload;
 const md5Check_1 = require("./md5Check");
 function load() {
+    console.log('web-bundle-zipper load');
 }
 function unload() {
+    console.log('web-bundle-zipper unload');
 }
 exports.configs = {
     'web-mobile': {
@@ -57,18 +59,11 @@ exports.configs = {
                 render: {
                     ui: 'ui-input',
                     attributes: {
-                        placeholder: '输入启动缓存的Bundle(以逗号间隔)',
+                        placeholder: '如 main,internal,resources（逗号分隔，按填写预装）',
                     },
                 },
                 default: 'main,internal',
                 verifyRules: ['require'],
-            },
-            deleteAfterZip: {
-                label: 'i18n:web_bundle_zipper.options.deleteAfterZip',
-                render: {
-                    ui: 'ui-checkbox',
-                },
-                default: true,
             },
             cdnAddress: {
                 label: 'i18n:web_bundle_zipper.options.cdnAddress',

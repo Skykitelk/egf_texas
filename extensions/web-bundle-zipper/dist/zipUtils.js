@@ -14,7 +14,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.zipDirectoryToFile = zipDirectoryToFile;
 exports.removeDir = removeDir;
-exports.zipDirectoryWithDelete = zipDirectoryWithDelete;
 exports.zipPublishSplit = zipPublishSplit;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
@@ -37,15 +36,6 @@ function removeDir(dirPath) {
     if (fs_1.default.existsSync(dirPath)) {
         fs_1.default.rmSync(dirPath, { recursive: true, force: true });
     }
-}
-/** 压缩目录内文件，可选压缩后删除源文件 */
-function zipDirectoryWithDelete(sourceDir, outZipPath, prefixInZip, deleteAfterZip) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield zipDirectoryToFile(sourceDir, outZipPath, prefixInZip);
-        if (deleteAfterZip) {
-            removeDir(sourceDir);
-        }
-    });
 }
 /** 生成 web.zip（不含 assets 目录）与 cdn.zip（仅 assets） */
 function zipPublishSplit(dest, webZipPath, cdnZipPath) {

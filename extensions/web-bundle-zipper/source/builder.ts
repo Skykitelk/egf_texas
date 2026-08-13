@@ -8,9 +8,11 @@ declare const Editor: {
 };
 
 export function load() {
+    console.log('web-bundle-zipper load');
 }
 
 export function unload() {
+    console.log('web-bundle-zipper unload');
 }
 
 export const configs = {
@@ -53,18 +55,11 @@ export const configs = {
                 render: {
                     ui: 'ui-input',
                     attributes: {
-                        placeholder: '输入启动缓存的Bundle(以逗号间隔)',
+                        placeholder: '如 main,internal,resources（逗号分隔，按填写预装）',
                     },
                 },
                 default: 'main,internal',
                 verifyRules: ['require'],
-            },
-            deleteAfterZip: {
-                label: 'i18n:web_bundle_zipper.options.deleteAfterZip',
-                render: {
-                    ui: 'ui-checkbox',
-                },
-                default: true,
             },
             cdnAddress: {
                 label: 'i18n:web_bundle_zipper.options.cdnAddress',

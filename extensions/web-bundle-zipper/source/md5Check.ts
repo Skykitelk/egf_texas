@@ -11,7 +11,6 @@ interface PkgOptions {
     appName: string;
     appShortName: string;
     initBundles: string;
-    deleteAfterZip?: boolean;
     cdnAddress?: string;
 }
 

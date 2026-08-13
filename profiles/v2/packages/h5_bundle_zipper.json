@@ -3,23 +3,29 @@
   "builder": {
     "options": {
       "web-mobile": {
-        "disableExtension": false,
+        "disableExtension": true,
         "appName": "AppFullName",
         "appShortName": "ShortName",
         "visitRoute": "/build/web-mobile/",
         "initBundles": "main,internal",
-        "deleteAfterZip": false,
         "__version__": "1.0.11"
       }
     },
     "taskOptionsMap": {
       "1786529568234": {
-        "disableExtension": false,
+        "disableExtension": true,
         "appName": "AppFullName",
         "appShortName": "ShortName",
         "visitRoute": "/build/web-mobile/",
         "initBundles": "main,internal",
-        "deleteAfterZip": false,
+        "__version__": "1.0.11"
+      },
+      "1786529568234}": {
+        "disableExtension": true,
+        "appName": "AppFullName",
+        "appShortName": "ShortName",
+        "visitRoute": "/build/web-mobile/",
+        "initBundles": "main,internal",
         "__version__": "1.0.11"
       }
     },

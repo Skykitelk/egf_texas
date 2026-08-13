@@ -70,6 +70,7 @@ export class main extends Component {
     };
 
     runTest() {
+        (window as any)?.closeInitBundlesLoading?.();
         m.uiMgr.showDpc("LoginView", { playerName: "test" });
         this.scheduleOnce(() => {
             m.uiMgr.hideDpc("LoginView");

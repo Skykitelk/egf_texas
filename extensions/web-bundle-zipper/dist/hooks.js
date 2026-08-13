@@ -89,32 +89,28 @@ function onAfterCompressSettings(_options, result) {
     });
 }
 /**
- * 压缩单个 Bundle 为 {bundle}.{ver}.zip（流式写入，低内存占用）
+ * 压缩单个 Bundle 为 {bundle}.{ver}.zip（流式写入，低内存占用；始终保留源目录）
  */
-function zipBundle(rootPath, bundle, ver, deleteAfterZip) {
+function zipBundle(rootPath, bundle, ver) {
     return __awaiter(this, void 0, void 0, function* () {
-        let shouldDelete = deleteAfterZip;
-        if (bundle === 'main' || bundle === 'internal' || bundle === 'resources') {
-            shouldDelete = false;
-        }
         const bundleDir = path_1.default.join(rootPath, bundle);
         const outZipPath = path_1.default.join(rootPath, `${bundle}.${ver}.zip`);
         const t0 = Date.now();
-        log(`zip bundle start: ${bundle}.${ver}.zip`, shouldDelete ? '(delete source after)' : '(keep source)');
-        yield (0, zipUtils_1.zipDirectoryWithDelete)(bundleDir, outZipPath, bundle, shouldDelete);
+        log(`zip bundle start: ${bundle}.${ver}.zip`);
+        yield (0, zipUtils_1.zipDirectoryToFile)(bundleDir, outZipPath, bundle);
         const sizeMb = (fs_1.default.statSync(outZipPath).size / 1024 / 1024).toFixed(2);
         log(`zip bundle done: ${bundle}.${ver}.zip`, `${sizeMb} MB`, `${Date.now() - t0}ms`);
     });
 }
 /** 压缩 assets 目录下所有 Bundle */
-function zipAllBundles(rootPath, deleteAfterZip) {
+function zipAllBundles(rootPath) {
     return __awaiter(this, void 0, void 0, function* () {
         const names = Object.keys(bundleVers);
-        log(`zip all bundles start: ${names.length} bundles`, `deleteAfterZip=${deleteAfterZip}`);
+        log(`zip all bundles start: ${names.length} bundles`);
         const t0 = Date.now();
         const promises = [];
         for (const bundle in bundleVers) {
-            promises.push(zipBundle(rootPath, bundle, bundleVers[bundle], deleteAfterZip));
+            promises.push(zipBundle(rootPath, bundle, bundleVers[bundle]));
         }
         yield Promise.all(promises);
         log(`zip all bundles done`, `${names.length} bundles`, `${Date.now() - t0}ms`);
@@ -134,6 +130,16 @@ function findCocosScriptStart(indexHtml, bodyStart) {
     const markerIndex = indexHtml.indexOf(COCOS_ENGINE_MARKER, bodyStart);
     if (markerIndex >= 0) {
         return markerIndex;
+    }
+    // Creator 默认模板：先加载 src/*.js，再 System.import；必须从第一个 src 脚本（或 Polyfills 注释）起截
+    const polyfillComment = indexHtml.indexOf('<!-- Polyfills bundle.', bodyStart);
+    if (polyfillComment >= 0) {
+        return polyfillComment;
+    }
+    const bodyHtml = indexHtml.substring(bodyStart);
+    const srcScriptMatch = bodyHtml.match(/<script[^>]*\ssrc=["'](?:\.\/)?src\/[^"']+\.js["'][^>]*>/i);
+    if (srcScriptMatch && typeof srcScriptMatch.index === 'number') {
+        return bodyStart + srcScriptMatch.index;
     }
     const systemImportIndex = indexHtml.indexOf('System.import(', bodyStart);
     if (systemImportIndex < 0) {
@@ -169,7 +175,7 @@ function normalizeInitBundles(value) {
         .split(',')
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
-    const result = ['resources'];
+    const result = [];
     for (const bundleName of initBundles) {
         if (result.indexOf(bundleName) < 0) {
             result.push(bundleName);
@@ -190,19 +196,18 @@ function onAfterBuild(options, result) {
         log('build options', {
             appName: pkgOptions.appName,
             initBundles: pkgOptions.initBundles,
-            deleteAfterZip: pkgOptions.deleteAfterZip,
             cdnAddress: pkgOptions.cdnAddress || '(same origin)',
         });
         // 复制 PWA 图标
         log('copy PWA icons...');
-        fs_1.default.mkdirSync(path_1.default.join(result.dest, 'img/'));
+        fs_1.default.mkdirSync(path_1.default.join(result.dest, 'img/'), { recursive: true });
         const imgPaths = fs_1.default.readdirSync(path_1.default.join(__dirname, '../files/img/'));
         for (const fileName of imgPaths) {
             fs_1.default.copyFileSync(path_1.default.join(__dirname, '../files/img/' + fileName), path_1.default.join(result.dest, 'img/' + fileName));
         }
         log('copy PWA icons done', `${imgPaths.length} files`);
         // lib/ 目录在下方按内容 hash 写入运行时脚本
-        fs_1.default.mkdirSync(path_1.default.join(result.dest, 'lib/'));
+        fs_1.default.mkdirSync(path_1.default.join(result.dest, 'lib/'), { recursive: true });
         // 生成 PWA manifest（scope/start_url 使用相对路径，适配任意部署目录）
         const webmanifest = {
             name: pkgOptions.appName,
@@ -257,22 +262,24 @@ function onAfterBuild(options, result) {
             }
         }
         log('initBundles', initBundles);
-        const swregister = fs_1.default
-            .readFileSync(path_1.default.join(__dirname, '../files/sw_register.js'))
-            .toString();
+        const bootstrapCode = fs_1.default.readFileSync(path_1.default.join(__dirname, '../files/bootstrap.js')).toString();
         const bodyStart = indexHtml.indexOf('<body>');
-        const scriptStart = findCocosScriptStart(indexHtml, bodyStart);
+        const scriptStart = findCocosScriptStart(indexHtml, bodyStart >= 0 ? bodyStart : 0);
         const scriptEnd = indexHtml.lastIndexOf('</body>');
-        if (bodyStart < 0 || scriptStart < 0 || scriptEnd < 0) {
-            throw new Error('[H5 Bundle Zipper] index.html structure not recognized, cannot inject scripts');
+        if (bodyStart < 0 || scriptStart < 0 || scriptEnd < 0 || scriptStart >= scriptEnd) {
+            throw new Error('[H5 Bundle Zipper] index.html structure not recognized, cannot inject scripts' +
+                ` (bodyStart=${bodyStart}, scriptStart=${scriptStart}, scriptEnd=${scriptEnd})`);
         }
         const scriptHtml = indexHtml.substring(scriptStart, scriptEnd);
-        const srcJSFiles = scriptHtml.match(/src="[^"]+\.js"/g) || [];
-        const srcJSONFiles = scriptHtml.match(/src="[^"]+\.json"/g);
-        const srcImportFiles = scriptHtml.match(/System\.import\([^)]+\)/g);
+        // 从整个 body 扫描引擎脚本，避免截取起点偏后导致漏掉 src/*.js
+        const scanHtml = indexHtml.substring(bodyStart, scriptEnd);
+        const srcJSFiles = scanHtml.match(/src=["']([^"']+\.js)["']/g) || [];
+        const srcJSONFiles = scanHtml.match(/src=["']([^"']+\.json)["']/g);
+        const srcImportFiles = scanHtml.match(/System\.import\([^)]+\)/g);
         let jsArray = '[';
         for (const v of srcJSFiles) {
-            const jsFileName = v.substring('src="'.length, v.length - 1);
+            const quote = v.includes("'") ? "'" : '"';
+            const jsFileName = v.substring(`src=${quote}`.length, v.length - 1);
             if (!jsFileName.startsWith('src/') && !jsFileName.startsWith('./src/')) {
                 continue;
             }
@@ -283,7 +290,9 @@ function onAfterBuild(options, result) {
         }
         jsArray += ']';
         if (jsArray === '[]') {
-            throw new Error('[H5 Bundle Zipper] No Cocos engine scripts (src/*.js) found in index.html; cannot inject startup scripts');
+            const preview = scanHtml.replace(/\s+/g, ' ').slice(0, 300);
+            throw new Error('[H5 Bundle Zipper] No Cocos engine scripts (src/*.js) found in index.html; cannot inject startup scripts. body preview: ' +
+                preview);
         }
         if (!(srcJSONFiles === null || srcJSONFiles === void 0 ? void 0 : srcJSONFiles[0])) {
             throw new Error('[H5 Bundle Zipper] No SystemJS import map (src/*.json) found in index.html');
@@ -291,24 +300,21 @@ function onAfterBuild(options, result) {
         if (!(srcImportFiles === null || srcImportFiles === void 0 ? void 0 : srcImportFiles[0])) {
             throw new Error('[H5 Bundle Zipper] No System.import(...) entry found in index.html');
         }
+        // 取第一个匹配到的路径（兼容单双引号）
+        const firstJsonAttr = srcJSONFiles[0];
+        const jsonQuote = firstJsonAttr.includes("'") ? "'" : '"';
+        const jsonFileName = firstJsonAttr.substring(`src=${jsonQuote}`.length, firstJsonAttr.length - 1);
         const cdnAddress = (pkgOptions.cdnAddress || '').replace(/\/+$/, '');
-        // 生成带 hash 的 zipcacher 脚本（须在 swVersion 计算前完成）
-        const cacherCode = fs_1.default
-            .readFileSync(path_1.default.join(__dirname, '../files/zipcacher.js'))
-            .toString();
+        const cacherCode = fs_1.default.readFileSync(path_1.default.join(__dirname, '../files/zipcacher.js')).toString();
         const cacherHash = easymd5(cacherCode);
-        const coreCode = fs_1.default
-            .readFileSync(path_1.default.join(__dirname, '../files/bundle_cache_core.js'))
+        const runtimeCode = fs_1.default.readFileSync(path_1.default.join(__dirname, '../files/bundle_runtime.js')).toString();
+        const installerCode = fs_1.default
+            .readFileSync(path_1.default.join(__dirname, '../files/bundle_installer.js'))
             .toString();
-        const pageCacherCode = fs_1.default
-            .readFileSync(path_1.default.join(__dirname, '../files/page_cacher.js'))
+        const networkCode = fs_1.default
+            .readFileSync(path_1.default.join(__dirname, '../files/network_intercept.js'))
             .toString();
-        const swRegisterCode = fs_1.default
-            .readFileSync(path_1.default.join(__dirname, '../files/sw_register.js'))
-            .toString();
-        const fflateCode = fs_1.default
-            .readFileSync(path_1.default.join(__dirname, '../files/fflate.min.js'))
-            .toString();
+        const fflateCode = fs_1.default.readFileSync(path_1.default.join(__dirname, '../files/fflate.min.js')).toString();
         const storageAdapterCode = fs_1.default
             .readFileSync(path_1.default.join(__dirname, '../files/storage_adapter.js'))
             .toString();
@@ -318,27 +324,27 @@ function onAfterBuild(options, result) {
         const runtimeUpdateUiCssCode = fs_1.default
             .readFileSync(path_1.default.join(__dirname, '../files/runtime_update_ui.css'))
             .toString();
-        const pwaInstallCode = fs_1.default
-            .readFileSync(path_1.default.join(__dirname, '../files/pwa_install.js'))
-            .toString();
+        const pwaInstallCode = fs_1.default.readFileSync(path_1.default.join(__dirname, '../files/pwa_install.js')).toString();
         // runtimeVersion 仅表示插件运行时脚本变更（不含引擎/站点资源）
         const runtimeVersion = easymd5(cacherHash +
-            easymd5(coreCode) +
-            easymd5(pageCacherCode) +
-            easymd5(swRegisterCode) +
+            easymd5(runtimeCode) +
+            easymd5(installerCode) +
+            easymd5(networkCode) +
+            easymd5(bootstrapCode) +
             easymd5(fflateCode) +
             easymd5(storageAdapterCode) +
             easymd5(runtimeUpdateUiCode) +
             easymd5(runtimeUpdateUiCssCode) +
             easymd5(pwaInstallCode));
         const libFflate = libHashedFilename('fflate', '.js', fflateCode);
+        const libRuntime = libHashedFilename('bundle_runtime', '.js', runtimeCode);
         const libStorageAdapter = libHashedFilename('storage_adapter', '.js', storageAdapterCode);
-        const libBundleCacheCore = libHashedFilename('bundle_cache_core', '.js', coreCode);
-        const libPageCacher = libHashedFilename('page_cacher', '.js', pageCacherCode);
+        const libInstaller = libHashedFilename('bundle_installer', '.js', installerCode);
+        const libNetwork = libHashedFilename('network_intercept', '.js', networkCode);
         const libRuntimeUpdateUi = libHashedFilename('runtime_update_ui', '.js', runtimeUpdateUiCode);
         const libPwaInstall = libHashedFilename('pwa_install', '.js', pwaInstallCode);
         const libRuntimeUpdateUiCss = libHashedFilename('runtime_update_ui', '.css', runtimeUpdateUiCssCode);
-        const libZipcacher = `zipcacher${cacherHash}.js`;
+        const libZipcacher = libHashedFilename('zipcacher', '.js', cacherCode);
         let configjs = '<link rel="stylesheet" href="lib/' +
             libRuntimeUpdateUiCss +
             '">\n' +
@@ -353,38 +359,36 @@ function onAfterBuild(options, result) {
             'var writeImport = "";\n' +
             '</script>\n' +
             `<script src="lib/${libFflate}"></script>\n` +
+            `<script src="lib/${libRuntime}"></script>\n` +
             `<script src="lib/${libStorageAdapter}"></script>\n` +
-            `<script src="lib/${libBundleCacheCore}"></script>\n` +
-            `<script src="lib/${libPageCacher}"></script>\n` +
+            `<script src="lib/${libInstaller}"></script>\n` +
+            `<script src="lib/${libNetwork}"></script>\n` +
             `<script src="lib/${libRuntimeUpdateUi}"></script>\n` +
             `<script src="lib/${libPwaInstall}"></script>\n`;
         configjs = configjs.replace('var writeJS = [];', `var writeJS = ${jsArray};`);
-        if (srcJSONFiles === null || srcJSONFiles === void 0 ? void 0 : srcJSONFiles[0]) {
-            const jsonFileName = srcJSONFiles[0].substring('src="'.length, srcJSONFiles[0].length - 1);
-            configjs = configjs.replace('var writeJSON = "";', `var writeJSON = ${JSON.stringify(jsonFileName)};`);
-        }
+        configjs = configjs.replace('var writeJSON = "";', `var writeJSON = ${JSON.stringify(jsonFileName)};`);
         if (srcImportFiles === null || srcImportFiles === void 0 ? void 0 : srcImportFiles[0]) {
             configjs = configjs.replace('var writeImport = "";', `var writeImport = ${JSON.stringify(srcImportFiles[0])};`);
         }
-        indexHtml = indexHtml.replace(scriptHtml, configjs + '<script type="text/javascript">\n' + swregister + '\n</script>');
+        indexHtml = indexHtml.replace(scriptHtml, configjs + '<script type="text/javascript">\n' + bootstrapCode + '\n</script>');
         indexHtml = patchSplashLogoPaths(indexHtml, result.dest);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'index.html'), indexHtml);
-        log('patch index.html done', `writeJS=${jsArray}`, `writeJSON=${(srcJSONFiles === null || srcJSONFiles === void 0 ? void 0 : srcJSONFiles[0]) || 'none'}`);
+        log('patch index.html done', `writeJS=${jsArray}`, `writeJSON=${jsonFileName}`);
         // 压缩所有 Bundle
-        yield zipAllBundles(path_1.default.join(result.dest, 'assets'), !!pkgOptions.deleteAfterZip);
+        yield zipAllBundles(path_1.default.join(result.dest, 'assets'));
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libFflate), fflateCode);
+        fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libRuntime), runtimeCode);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libStorageAdapter), storageAdapterCode);
-        fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libBundleCacheCore), coreCode);
-        fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libPageCacher), pageCacherCode);
+        fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libInstaller), installerCode);
+        fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libNetwork), networkCode);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libRuntimeUpdateUi), runtimeUpdateUiCode);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libRuntimeUpdateUiCss), runtimeUpdateUiCssCode);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libPwaInstall), pwaInstallCode);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libZipcacher), cacherCode);
-        log('write runtime scripts', `runtimeVersion=${runtimeVersion}`, libZipcacher, libBundleCacheCore);
-        // distDir 由 SW 根据 sw.js 所在目录自动解析
+        log('write runtime scripts', `runtimeVersion=${runtimeVersion}`, libZipcacher, libInstaller);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'sw.js'), `const BUNDLE_ZIPPER_SW_VERSION = "${runtimeVersion}";
-importScripts("./lib/${libFflate}", "./lib/${libBundleCacheCore}", "./lib/${libZipcacher}");
-BundleZipperSW.init({ cdnUrl: ${JSON.stringify(cdnAddress)}, swVersion: "${runtimeVersion}", knownBundles: ${JSON.stringify(bundleVers)} });
+importScripts("./lib/${libFflate}", "./lib/${libRuntime}", "./lib/${libStorageAdapter}", "./lib/${libZipcacher}");
+BundleZipperSW.init({ swVersion: "${runtimeVersion}", knownBundles: ${JSON.stringify(bundleVers)}, initBundles: ${JSON.stringify(initBundles)} });
 `);
         log('write sw.js');
         log('skip web.zip pack (disabled for large projects)');

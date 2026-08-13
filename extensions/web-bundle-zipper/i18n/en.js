@@ -6,8 +6,7 @@ module.exports={
         appName:"App Name",
         appShortName:"App Short Name",
         initBundles:'Init Bundles',
-        cdnAddress:"cdn Address",
-        deleteAfterZip:"DeleteAfterZip"
+        cdnAddress:"cdn Address"
     },
     description:"H5 Bundle Zipper"
 };
