@@ -6,12 +6,19 @@
     /** @type {Record<string, Promise<void>>} */
     const inflight = Object.create(null);
 
+    function api() {
+        if (!global.WebBundleZipper) {
+            global.WebBundleZipper = {};
+        }
+        return global.WebBundleZipper;
+    }
+
     function R() {
-        return global.BundleZipperRuntime || {};
+        return api().Runtime || {};
     }
 
     function S() {
-        return global.BundleZipperStorage;
+        return api().Storage;
     }
 
     function log() {
@@ -19,21 +26,22 @@
     }
 
     function getAllBundles() {
-        return typeof allBundles !== 'undefined' && allBundles ? allBundles : {};
+        return api().allBundles || {};
     }
 
     function getInitBundles() {
-        return typeof initBundles !== 'undefined' && Array.isArray(initBundles) ? initBundles : [];
+        const list = api().initBundles;
+        return Array.isArray(list) ? list : [];
     }
 
     function getCdnAddress() {
-        return typeof cdnAddress !== 'undefined' ? cdnAddress || '' : '';
+        return api().cdnAddress || '';
     }
 
     function emitProgress(name, progress) {
         try {
-            if (typeof global.onBundleInstallProgress === 'function') {
-                global.onBundleInstallProgress(name, progress);
+            if (typeof api().onBundleInstallProgress === 'function') {
+                api().onBundleInstallProgress(name, progress);
             }
         } catch (err) {
             log().warn('onBundleInstallProgress error', err);
@@ -42,8 +50,8 @@
 
     function emitSuccess(name) {
         try {
-            if (typeof global.onBundleInstallSuccess === 'function') {
-                global.onBundleInstallSuccess(name);
+            if (typeof api().onBundleInstallSuccess === 'function') {
+                api().onBundleInstallSuccess(name);
             }
         } catch (err) {
             log().warn('onBundleInstallSuccess error', err);
@@ -53,8 +61,8 @@
     function emitError(name, error) {
         const err = error instanceof Error ? error : new Error(String(error || 'install failed'));
         try {
-            if (typeof global.onBundleInstallError === 'function') {
-                global.onBundleInstallError(name, err);
+            if (typeof api().onBundleInstallError === 'function') {
+                api().onBundleInstallError(name, err);
             }
         } catch (cbErr) {
             log().warn('onBundleInstallError error', cbErr);
@@ -63,8 +71,8 @@
 
     function emitCleanFinish() {
         try {
-            if (typeof global.onBundlesCleanFinish === 'function') {
-                global.onBundlesCleanFinish();
+            if (typeof api().onBundlesCleanFinish === 'function') {
+                api().onBundlesCleanFinish();
             }
         } catch (err) {
             log().warn('onBundlesCleanFinish error', err);
@@ -89,22 +97,117 @@
     }
 
     async function downloadZip(url, onProgress) {
-        const response = await fetch(url, { cache: 'no-store' });
+        const timeoutMs = 120000;
+
+        function downloadViaXhr() {
+            return new Promise(function (resolve, reject) {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.responseType = 'arraybuffer';
+                xhr.timeout = timeoutMs;
+                xhr.onload = function () {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        if (onProgress) {
+                            onProgress(0.85);
+                        }
+                        resolve(xhr.response);
+                        return;
+                    }
+                    if (xhr.status === 404) {
+                        reject(
+                            new Error(
+                                'zip download 404 (常见于重新部署后浏览器仍缓存了旧 index.html / 旧 Bundle 版本，请强制刷新或清站点数据): ' +
+                                    xhr.status +
+                                    ' ' +
+                                    url,
+                            ),
+                        );
+                        return;
+                    }
+                    reject(new Error('zip download failed: ' + xhr.status + ' ' + url));
+                };
+                xhr.onerror = function () {
+                    reject(new Error('zip download network error: ' + url));
+                };
+                xhr.ontimeout = function () {
+                    reject(new Error('zip download timeout after ' + timeoutMs + 'ms: ' + url));
+                };
+                xhr.onprogress = function (ev) {
+                    if (!onProgress || !ev || !ev.lengthComputable || !ev.total) {
+                        return;
+                    }
+                    onProgress(Math.min(0.85, ev.loaded / ev.total));
+                };
+                xhr.send();
+            });
+        }
+
+        // 旧 WebView 无 AbortController / 无 stream：用 XHR.timeout 保证可失败可 Retry
+        if (typeof AbortController === 'undefined' || typeof fetch === 'undefined') {
+            return downloadViaXhr();
+        }
+
+        const ctrl = new AbortController();
+        const timer = setTimeout(function () {
+            try {
+                ctrl.abort();
+            } catch (_) {}
+        }, timeoutMs);
+        let response;
+        try {
+            response = await fetch(url, {
+                cache: 'no-store',
+                signal: ctrl.signal,
+            });
+        } catch (err) {
+            clearTimeout(timer);
+            if (err && err.name === 'AbortError') {
+                throw new Error('zip download timeout after ' + timeoutMs + 'ms: ' + url);
+            }
+            // fetch 异常时回退 XHR（部分 WebView fetch 不稳）
+            try {
+                return await downloadViaXhr();
+            } catch (xhrErr) {
+                throw err;
+            }
+        }
+        clearTimeout(timer);
         if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error(
+                    'zip download 404 (常见于重新部署后浏览器仍缓存了旧 index.html / 旧 Bundle 版本，请强制刷新或清站点数据): ' +
+                        response.status +
+                        ' ' +
+                        url,
+                );
+            }
             throw new Error('zip download failed: ' + response.status + ' ' + url);
         }
         const total = Number(response.headers.get('content-length') || 0);
         if (!response.body || !response.body.getReader) {
-            const buf = await response.arrayBuffer();
+            const bufPromise = response.arrayBuffer();
+            const timeoutPromise = new Promise(function (_, reject) {
+                setTimeout(function () {
+                    reject(new Error('zip download timeout after ' + timeoutMs + 'ms: ' + url));
+                }, timeoutMs);
+            });
+            const buf = await Promise.race([bufPromise, timeoutPromise]);
             if (onProgress) {
-                onProgress(1);
+                onProgress(0.85);
             }
             return buf;
         }
         const reader = response.body.getReader();
         const chunks = [];
         let received = 0;
+        const startedAt = Date.now();
         while (true) {
+            if (Date.now() - startedAt > timeoutMs) {
+                try {
+                    reader.cancel();
+                } catch (_) {}
+                throw new Error('zip download timeout after ' + timeoutMs + 'ms: ' + url);
+            }
             const result = await reader.read();
             if (result.done) {
                 break;
@@ -140,7 +243,7 @@
         let allPersistent = true;
         let written = 0;
         for (let i = 0; i < names.length; i++) {
-            let relative = names[i].replace(/^\/+/, '');
+            let relative = names[i].replace(/^\/+/, '').replace(/\\/g, '/');
             if (!relative || /\/$/.test(relative)) {
                 continue;
             }
@@ -150,8 +253,32 @@
             if (!relative) {
                 continue;
             }
+            const segs = relative.split('/');
+            let unsafe = false;
+            for (let s = 0; s < segs.length; s++) {
+                if (!segs[s] || segs[s] === '.' || segs[s] === '..') {
+                    unsafe = true;
+                    break;
+                }
+            }
+            if (unsafe) {
+                log().warn('skip unsafe zip entry', bundleName, names[i]);
+                continue;
+            }
             const data = files[names[i]];
             const url = R().resourceUrlInBundle(bundleName, relative);
+            if (!url) {
+                log().warn('skip unsafe zip entry', bundleName, names[i]);
+                continue;
+            }
+            if (R().toStableCachePath) {
+                const stable = R().toStableCachePath(url);
+                const expectPrefix = '/assets/' + bundleName + '/';
+                if (!stable || stable.indexOf(expectPrefix) !== 0) {
+                    log().warn('skip zip-slip entry', bundleName, names[i], stable);
+                    continue;
+                }
+            }
             const mime = R().getFileMime(relative);
             const response = new Response(data, {
                 status: 200,
@@ -167,6 +294,10 @@
                 allPersistent = false;
             }
             written++;
+            // 尽早释放解压条目，降低低端机峰值内存
+            try {
+                delete files[names[i]];
+            } catch (_) {}
             emitProgress(bundleName, 0.85 + (0.14 * written) / Math.max(names.length, 1));
         }
         return { allPersistent: allPersistent, fileCount: written };
@@ -186,12 +317,14 @@
         const url = R().zipUrlForBundle(bundleName, version, getCdnAddress());
         log().info('installBundle start', bundleName, version, url);
         emitProgress(bundleName, 0);
-        const buffer = await downloadZip(url, function (p) {
+        let buffer = await downloadZip(url, function (p) {
             emitProgress(bundleName, p);
         });
         emitProgress(bundleName, 0.88);
-        const files = await unzipWithFflate(buffer);
+        let files = await unzipWithFflate(buffer);
+        buffer = null;
         const writeResult = await writeUnzippedFiles(bundleName, version, files);
+        files = null;
         // 清掉该 bundle 其它版本
         const api = await S().resolvePersistent();
         const session = S().ensureSession();
@@ -205,14 +338,17 @@
             }
         }
         if (!writeResult.allPersistent) {
-            // session-only：本页可读（须走页面拦截），不写 installed，刷新后会重装
+            // session-only：本页可读（须走页面拦截）；仍写入 fileCounts，刷新后无 cache 会清掉 installed
             if (S().markSessionSpill) {
                 S().markSessionSpill();
             }
+            await S().setInstalledVersion(bundleName, version, { fileCount: writeResult.fileCount });
             log().warn(
-                'installBundle session-only (quota), skip installed mark',
+                'installBundle session-only (quota), marked for this page',
                 bundleName,
                 version,
+                'files=',
+                writeResult.fileCount,
             );
             emitProgress(bundleName, 1);
             return;
@@ -334,15 +470,17 @@
         return runInstall(bundleName);
     }
 
-    global.installBundle = installBundle;
-    global.checkBundleVersion = checkBundleVersion;
-    global.cleanBundle = cleanBundle;
-    global.cleanAllBundles = cleanAllBundles;
-    global.BundleZipperInstaller = {
+    // 全部挂到 WebBundleZipper，避免顶层全局污染
+    const root = api();
+    root.Installer = {
         installBundle: installBundle,
         installBundleAndWait: installBundleAndWait,
         checkBundleVersion: checkBundleVersion,
         cleanBundle: cleanBundle,
         cleanAllBundles: cleanAllBundles,
     };
+    root.installBundle = installBundle;
+    root.checkBundleVersion = checkBundleVersion;
+    root.cleanBundle = cleanBundle;
+    root.cleanAllBundles = cleanAllBundles;
 })(typeof window !== 'undefined' ? window : self);

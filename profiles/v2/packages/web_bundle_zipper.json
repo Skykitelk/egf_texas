@@ -1,5 +1,5 @@
 {
-  "__version__": "1.0.24",
+  "__version__": "1.0.41",
   "builder": {
     "taskOptionsMap": {
       "1786529568234": {
@@ -14,7 +14,7 @@
         "ableExtension": true,
         "appName": "Egf Game",
         "appShortName": "Egf Game",
-        "initBundles": "main,internal",
+        "initBundles": "main,internal,resources",
         "deleteAfterZip": true,
         "__version__": "1.0.13"
       }

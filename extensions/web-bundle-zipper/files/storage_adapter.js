@@ -22,8 +22,15 @@
         return sessionSpillActive;
     }
 
+    function api() {
+        if (!global.WebBundleZipper) {
+            global.WebBundleZipper = {};
+        }
+        return global.WebBundleZipper;
+    }
+
     function R() {
-        return global.BundleZipperRuntime || {};
+        return api().Runtime || {};
     }
 
     function log() {
@@ -144,8 +151,21 @@
                 reject(new Error('IndexedDB unavailable'));
                 return;
             }
+            let settled = false;
+            const timer = setTimeout(function () {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                reject(new Error('IndexedDB open timeout'));
+            }, 5000);
             const req = global.indexedDB.open(DB_NAME, DB_VERSION);
             req.onerror = function () {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                clearTimeout(timer);
                 reject(req.error || new Error('IndexedDB open failed'));
             };
             req.onupgradeneeded = function () {
@@ -155,6 +175,14 @@
                 }
             };
             req.onsuccess = function () {
+                if (settled) {
+                    try {
+                        req.result.close();
+                    } catch (_) {}
+                    return;
+                }
+                settled = true;
+                clearTimeout(timer);
                 resolve(req.result);
             };
         });
@@ -522,9 +550,40 @@
         return null;
     }
 
-    async function matchUrl(url) {
+    async function matchUrl(url, options) {
+        options = options || {};
+        const preferName = options.cacheName || null;
         const api = await resolvePersistent();
         const kind = api.kind || '';
+        const session = ensureSession();
+
+        async function matchNamed(cacheName) {
+            if (!cacheName) {
+                return null;
+            }
+            if (await api.has(cacheName)) {
+                const cache = await api.open(cacheName);
+                const hit = await matchInSingleCache(cache, url, kind);
+                if (hit) {
+                    touchAccess(cacheName);
+                    return hit.clone();
+                }
+            }
+            if (session && (await session.has(cacheName))) {
+                const cache = await session.open(cacheName);
+                const hit = await matchInSingleCache(cache, url, 'memory');
+                if (hit) {
+                    return hit.clone();
+                }
+            }
+            return null;
+        }
+
+        // 优先只查当前构建 version，避免旧版 cache 先命中
+        if (preferName) {
+            return matchNamed(preferName);
+        }
+
         const keys = await api.keys();
         for (let i = 0; i < keys.length; i++) {
             const key = keys[i];
@@ -541,7 +600,6 @@
                 return hit.clone();
             }
         }
-        const session = ensureSession();
         const sKeys = await session.keys();
         for (let j = 0; j < sKeys.length; j++) {
             const sKey = sKeys[j];
@@ -625,6 +683,11 @@
         try {
             await cache.put(entryKeyValue, response.clone());
             touchAccess(cacheName);
+            // memory「持久层」实际仅本页可见，按 session 语义返回，驱动页面拦截
+            if (api.kind === 'memory') {
+                markSessionSpill();
+                return 'session';
+            }
             return 'persistent';
         } catch (err) {
             if (!(R().isQuotaError && R().isQuotaError(err))) {
@@ -642,6 +705,10 @@
                 try {
                     await cache.put(entryKeyValue, response.clone());
                     touchAccess(cacheName);
+                    if (api.kind === 'memory') {
+                        markSessionSpill();
+                        return 'session';
+                    }
                     return 'persistent';
                 } catch (err2) {
                     if (!(R().isQuotaError && R().isQuotaError(err2))) {
@@ -788,44 +855,61 @@
         }
         const meta = await readMeta();
         const installed = (meta && meta.installed) || {};
-        if (installed[bundleName] !== version) {
-            return false;
-        }
         const cacheName = R().buildCacheName
             ? R().buildCacheName(bundleName, version)
             : bundleName + '@' + version;
         try {
             const api = await resolvePersistent();
-            if (!(await api.has(cacheName))) {
-                await setInstalledVersion(bundleName, null);
+            const session = ensureSession();
+            const inPersistent = await api.has(cacheName);
+            const inSession = !!(session && (await session.has(cacheName)));
+            if (!inPersistent && !inSession) {
+                if (installed[bundleName] === version) {
+                    await setInstalledVersion(bundleName, null);
+                }
                 return false;
             }
-            const cache = await api.open(cacheName);
+
+            const cache = inPersistent
+                ? await api.open(cacheName)
+                : await session.open(cacheName);
             if (!cache.keys) {
-                return true;
+                // 无法枚举：仅当已登记且有 fileCounts 时信 meta（仍无法验数量则保守 false）
+                return false;
             }
             const keys = await cache.keys();
             const count = keys && keys.length ? keys.length : 0;
             if (!count) {
-                await setInstalledVersion(bundleName, null);
+                if (installed[bundleName] === version) {
+                    await setInstalledVersion(bundleName, null);
+                }
                 return false;
             }
+            // 必须有 fileCounts 且数量达标，才认完整（避免中断安装留下几个文件就跳过重装）
             const expected =
                 meta.fileCounts && typeof meta.fileCounts[bundleName] === 'number'
                     ? meta.fileCounts[bundleName]
                     : 0;
-            if (expected > 0 && count < expected) {
-                log().warn(
-                    'hasCompleteBundle incomplete file count',
-                    bundleName,
-                    count,
-                    '<',
-                    expected,
-                );
-                await setInstalledVersion(bundleName, null);
+            if (expected <= 0 || count < expected) {
+                if (expected > 0 && count < expected) {
+                    log().warn(
+                        'hasCompleteBundle incomplete file count',
+                        bundleName,
+                        count,
+                        '<',
+                        expected,
+                    );
+                }
+                if (installed[bundleName] === version && inPersistent) {
+                    await setInstalledVersion(bundleName, null);
+                }
                 return false;
             }
-            return true;
+            // 已登记最新版，或本页 session 已有完整内容（配额 spill / session-only）
+            if (installed[bundleName] === version || inSession) {
+                return true;
+            }
+            return false;
         } catch (err) {
             log().warn('hasCompleteBundle check failed', bundleName, err);
             return false;
@@ -897,7 +981,7 @@
         return { migrated: migrated };
     }
 
-    global.BundleZipperStorage = {
+    api().Storage = {
         resolvePersistent: resolvePersistent,
         ensureSession: ensureSession,
         getStorageKind: function () {

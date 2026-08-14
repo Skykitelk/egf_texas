@@ -6,6 +6,10 @@
 #bz-runtime-update-overlay,
 #bz-init-bundles-loading {
     position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     inset: 0;
     z-index: 100000;
 }
@@ -16,10 +20,14 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
 }
 
 .bz-modal-panel {
+    width: 92%;
+    max-width: 360px;
     width: min(92vw, 360px);
     background: #1f1f1f;
     color: #fff;
@@ -50,6 +58,8 @@
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 #bz-update-now {
@@ -66,6 +76,9 @@
     justify-content: center;
     color: #fff;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+        env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    box-sizing: border-box;
 }
 
 .bz-spinner {
@@ -85,21 +98,16 @@
 
 .bz-update-status,
 .bz-init-status {
-    margin: 18px 0 12px;
+    margin: 16px 12px 8px;
     font-size: 15px;
-}
-
-.bz-init-detail {
-    margin: 10px 0 0;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
-    min-height: 1.2em;
+    text-align: center;
 }
 
 .bz-update-progress,
 .bz-init-progress {
-    width: min(70vw, 280px);
-    height: 6px;
+    width: 70%;
+    max-width: 280px;
+    height: 8px;
     background: rgba(255, 255, 255, 0.15);
     border-radius: 999px;
     overflow: hidden;
@@ -109,16 +117,23 @@
 .bz-init-progress span {
     display: block;
     height: 100%;
-    width: 0;
+    width: 0%;
     background: #f0c040;
-    transition: width 0.2s ease;
+    border-radius: 999px;
+}
+
+.bz-init-detail {
+    margin: 8px 12px 0;
+    font-size: 13px;
+    opacity: 0.75;
+    text-align: center;
 }
 
 #bz-update-retry {
     margin-top: 20px;
-    min-width: 140px;
     min-height: 44px;
-    padding: 0 24px;
+    min-width: 120px;
+    padding: 0 20px;
     border: none;
     border-radius: 8px;
     background: #f0c040;
@@ -126,12 +141,10 @@
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    font-family: inherit;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 #bz-runtime-update-overlay.bz-update-failed .bz-update-status {
-    max-width: min(85vw, 320px);
-    text-align: center;
-    line-height: 1.45;
     color: #ffb4b4;
 }

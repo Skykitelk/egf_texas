@@ -170,6 +170,22 @@ function patchSplashLogoPaths(indexHtml, buildDir) {
     const logoFile = resolveHashedAsset(buildDir, 'logo.png');
     return indexHtml.replace(/logo2\.png/g, logo2File).replace(/logo\.png/g, logoFile);
 }
+/** 刘海屏 safe-area 依赖 viewport-fit=cover */
+function ensureViewportFitCover(indexHtml) {
+    if (/viewport-fit\s*=\s*cover/i.test(indexHtml)) {
+        return indexHtml;
+    }
+    if (/<meta[^>]+name\s*=\s*["']viewport["'][^>]*>/i.test(indexHtml)) {
+        return indexHtml.replace(/(<meta[^>]+name\s*=\s*["']viewport["'][^>]*content\s*=\s*["'])([^"']*)(["'][^>]*>)/i, (_m, prefix, content, suffix) => {
+            const trimmed = String(content || '')
+                .trim()
+                .replace(/[,;]\s*$/, '');
+            return `${prefix}${trimmed}${trimmed ? ',' : ''}viewport-fit=cover${suffix}`;
+        });
+    }
+    return indexHtml.replace(/<meta name="apple-touch-fullscreen" content="yes"\/>/, `<meta name="apple-touch-fullscreen" content="yes"/>
+  <meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1,viewport-fit=cover"/>`);
+}
 function normalizeInitBundles(value) {
     const initBundles = value
         .split(',')
@@ -336,6 +352,8 @@ function onAfterBuild(options, result) {
             easymd5(runtimeUpdateUiCode) +
             easymd5(runtimeUpdateUiCssCode) +
             easymd5(pwaInstallCode));
+        // 发布版本：runtime + bundleVers + initBundles；用于 index.html ?bzv= 缓存破坏
+        const publishVersion = easymd5(runtimeVersion + JSON.stringify(bundleVers) + JSON.stringify(initBundles));
         const libFflate = libHashedFilename('fflate', '.js', fflateCode);
         const libRuntime = libHashedFilename('bundle_runtime', '.js', runtimeCode);
         const libStorageAdapter = libHashedFilename('storage_adapter', '.js', storageAdapterCode);
@@ -349,14 +367,18 @@ function onAfterBuild(options, result) {
             libRuntimeUpdateUiCss +
             '">\n' +
             '<script type="text/javascript">\n' +
-            `var initBundles = ${JSON.stringify(initBundles)};\n` +
-            `var allBundles = ${JSON.stringify(bundleVers)};\n` +
-            `var runtimeVersion = ${JSON.stringify(runtimeVersion)};\n` +
-            `var swVersion = ${JSON.stringify(runtimeVersion)};\n` +
-            `var cdnAddress = ${JSON.stringify(cdnAddress)};\n` +
-            'var writeJS = [];\n' +
-            'var writeJSON = "";\n' +
-            'var writeImport = "";\n' +
+            'window.WebBundleZipper = window.WebBundleZipper || {};\n' +
+            `(function (W) {\n` +
+            `  W.initBundles = ${JSON.stringify(initBundles)};\n` +
+            `  W.allBundles = ${JSON.stringify(bundleVers)};\n` +
+            `  W.runtimeVersion = ${JSON.stringify(runtimeVersion)};\n` +
+            `  W.swVersion = ${JSON.stringify(runtimeVersion)};\n` +
+            `  W.publishVersion = ${JSON.stringify(publishVersion)};\n` +
+            `  W.cdnAddress = ${JSON.stringify(cdnAddress)};\n` +
+            '  W.writeJS = [];\n' +
+            '  W.writeJSON = "";\n' +
+            '  W.writeImport = "";\n' +
+            '})(window.WebBundleZipper);\n' +
             '</script>\n' +
             `<script src="lib/${libFflate}"></script>\n` +
             `<script src="lib/${libRuntime}"></script>\n` +
@@ -365,13 +387,14 @@ function onAfterBuild(options, result) {
             `<script src="lib/${libNetwork}"></script>\n` +
             `<script src="lib/${libRuntimeUpdateUi}"></script>\n` +
             `<script src="lib/${libPwaInstall}"></script>\n`;
-        configjs = configjs.replace('var writeJS = [];', `var writeJS = ${jsArray};`);
-        configjs = configjs.replace('var writeJSON = "";', `var writeJSON = ${JSON.stringify(jsonFileName)};`);
+        configjs = configjs.replace('W.writeJS = [];', `W.writeJS = ${jsArray};`);
+        configjs = configjs.replace('W.writeJSON = "";', `W.writeJSON = ${JSON.stringify(jsonFileName)};`);
         if (srcImportFiles === null || srcImportFiles === void 0 ? void 0 : srcImportFiles[0]) {
-            configjs = configjs.replace('var writeImport = "";', `var writeImport = ${JSON.stringify(srcImportFiles[0])};`);
+            configjs = configjs.replace('W.writeImport = "";', `W.writeImport = ${JSON.stringify(srcImportFiles[0])};`);
         }
         indexHtml = indexHtml.replace(scriptHtml, configjs + '<script type="text/javascript">\n' + bootstrapCode + '\n</script>');
         indexHtml = patchSplashLogoPaths(indexHtml, result.dest);
+        indexHtml = ensureViewportFitCover(indexHtml);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'index.html'), indexHtml);
         log('patch index.html done', `writeJS=${jsArray}`, `writeJSON=${jsonFileName}`);
         // 压缩所有 Bundle
@@ -386,9 +409,18 @@ function onAfterBuild(options, result) {
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libPwaInstall), pwaInstallCode);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'lib/' + libZipcacher), cacherCode);
         log('write runtime scripts', `runtimeVersion=${runtimeVersion}`, libZipcacher, libInstaller);
+        fs_1.default.writeFileSync(path_1.default.join(result.dest, 'bz-publish.json'), JSON.stringify({
+            v: publishVersion,
+            runtimeVersion,
+            initBundles,
+            allBundles: bundleVers,
+            builtAt: Date.now(),
+        }, null, 2));
+        log('write bz-publish.json', `publishVersion=${publishVersion}`);
         fs_1.default.writeFileSync(path_1.default.join(result.dest, 'sw.js'), `const BUNDLE_ZIPPER_SW_VERSION = "${runtimeVersion}";
+const BUNDLE_ZIPPER_PUBLISH_VERSION = "${publishVersion}";
 importScripts("./lib/${libFflate}", "./lib/${libRuntime}", "./lib/${libStorageAdapter}", "./lib/${libZipcacher}");
-BundleZipperSW.init({ swVersion: "${runtimeVersion}", knownBundles: ${JSON.stringify(bundleVers)}, initBundles: ${JSON.stringify(initBundles)} });
+(self.WebBundleZipper = self.WebBundleZipper || {}).SW.init({ swVersion: "${runtimeVersion}", knownBundles: ${JSON.stringify(bundleVers)}, initBundles: ${JSON.stringify(initBundles)} });
 `);
         log('write sw.js');
         log('skip web.zip pack (disabled for large projects)');

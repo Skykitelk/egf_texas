@@ -6,6 +6,22 @@
     const OVERLAY_ID = 'bz-runtime-update-overlay';
     const INIT_LOADING_ID = 'bz-init-bundles-loading';
 
+    function ensureOverlayDom() {
+        if (global.document.getElementById(OVERLAY_ID)) {
+            ensureRetryButton();
+            return;
+        }
+        const overlay = global.document.createElement('div');
+        overlay.id = OVERLAY_ID;
+        overlay.className = 'bz-hidden';
+        overlay.innerHTML =
+            '<div class="bz-spinner" aria-label="Updating"></div>' +
+            '<p class="bz-update-status">Updating...</p>' +
+            '<div class="bz-update-progress"><span style="width:0%"></span></div>' +
+            '<button type="button" id="bz-update-retry" class="bz-hidden">Retry</button>';
+        global.document.body.appendChild(overlay);
+    }
+
     function ensureDom() {
         if (!global.document.getElementById(MODAL_ID)) {
             const wrap = global.document.createElement('div');
@@ -14,23 +30,15 @@
                 MODAL_ID +
                 '" class="bz-hidden" role="dialog" aria-modal="true">' +
                 '<div class="bz-modal-panel">' +
-                '<p class="bz-modal-message">A new version is available. Update now?</p>' +
+                '<p class="bz-modal-message">A new version is available. Please update to continue.</p>' +
                 '<div class="bz-modal-actions">' +
-                '<button type="button" id="bz-update-now">Update Now</button>' +
-                '</div></div></div>' +
-                '<div id="' +
-                OVERLAY_ID +
-                '" class="bz-hidden">' +
-                '<div class="bz-spinner" aria-label="Updating"></div>' +
-                '<p class="bz-update-status">Updating...</p>' +
-                '<div class="bz-update-progress"><span style="width:0%"></span></div>' +
-                '<button type="button" id="bz-update-retry" class="bz-hidden">Retry</button>' +
-                '</div>';
+                '<button type="button" id="bz-update-now">OK</button>' +
+                '</div></div></div>';
             while (wrap.firstChild) {
                 global.document.body.appendChild(wrap.firstChild);
             }
-            ensureRetryButton();
         }
+        ensureOverlayDom();
         ensureInitLoadingDom();
     }
 
@@ -83,21 +91,22 @@
             const modal = getModal();
             const nowBtn = global.document.getElementById('bz-update-now');
             if (!modal || !nowBtn) {
-                resolve('reload');
+                resolve();
                 return;
             }
 
             function cleanup() {
                 modal.classList.add('bz-hidden');
-                nowBtn.removeEventListener('click', onNow);
+                nowBtn.removeEventListener('click', onAgree);
             }
 
-            function onNow() {
+            function onAgree() {
                 cleanup();
-                resolve('reload');
+                resolve();
             }
 
-            nowBtn.addEventListener('click', onNow);
+            // OK-only; no cancel / later
+            nowBtn.addEventListener('click', onAgree);
             modal.classList.remove('bz-hidden');
         });
     }
@@ -166,11 +175,11 @@
 
     function showRuntimeUpdateError(message) {
         ensureDom();
-        return new Promise(function (resolve) {
+        return new Promise(function (resolve, reject) {
             const overlay = getOverlay();
             const retryBtn = global.document.getElementById('bz-update-retry');
             if (!overlay || !retryBtn) {
-                resolve();
+                reject(new Error('update retry UI unavailable'));
                 return;
             }
 
@@ -231,11 +240,19 @@
         }
     }
 
+    function api() {
+        if (!global.WebBundleZipper) {
+            global.WebBundleZipper = {};
+        }
+        return global.WebBundleZipper;
+    }
+
     function closeInitBundlesLoading() {
         hideInitBundlesLoading();
     }
 
-    global.BundleZipperRuntimeUI = {
+    const root = api();
+    root.UI = {
         ensureDom: ensureDom,
         showRuntimeUpdateModal: showRuntimeUpdateModal,
         showRuntimeUpdateOverlay: showRuntimeUpdateOverlay,
@@ -249,6 +266,5 @@
         setInitBundlesProgress: setInitBundlesProgress,
         closeInitBundlesLoading: closeInitBundlesLoading,
     };
-
-    global.closeInitBundlesLoading = closeInitBundlesLoading;
+    root.closeInitBundlesLoading = closeInitBundlesLoading;
 })(typeof window !== 'undefined' ? window : self);

@@ -8,19 +8,14 @@
     const STABLE_ORIGIN = 'https://bundle-zipper.local';
     const LEGACY_ENGINE_PREFIX = '__bundle_zipper_engine__.';
     const LS_CONFIRMED = 'BundleZipper.confirmedSnapshot';
-    const LS_DEBUG = 'BundleZipper.debug';
 
+    /** 仅地址栏 ?bzdebug=1 开启明细日志（不再支持 localStorage） */
     function isDebugEnabled() {
         try {
             if (typeof global.location !== 'undefined' && global.location.search) {
                 if (/[?&]bzdebug=1(?:&|$)/.test(global.location.search)) {
                     return true;
                 }
-            }
-        } catch (_) {}
-        try {
-            if (typeof global.localStorage !== 'undefined' && global.localStorage.getItem(LS_DEBUG) === '1') {
-                return true;
             }
         } catch (_) {}
         return false;
@@ -40,8 +35,10 @@
             if (!isDebugEnabled()) {
                 return;
             }
-            console.debug.apply(console, ['[BundleZipper]'].concat(Array.prototype.slice.call(arguments)));
+            // 用 log 而非 console.debug：Chrome 默认隐藏 Verbose
+            console.log.apply(console, ['[BundleZipper][debug]'].concat(Array.prototype.slice.call(arguments)));
         },
+        isDebugEnabled: isDebugEnabled,
     };
 
     function buildCacheName(bundleName, version) {
@@ -157,7 +154,18 @@
     }
 
     function resourceUrlInBundle(bundleName, relativePath) {
-        const path = String(relativePath || '').replace(/^\/+/, '');
+        let path = String(relativePath || '')
+            .replace(/\\/g, '/')
+            .replace(/^\/+/, '');
+        if (!path || path.indexOf('\0') >= 0) {
+            return '';
+        }
+        const parts = path.split('/');
+        for (let i = 0; i < parts.length; i++) {
+            if (!parts[i] || parts[i] === '.' || parts[i] === '..') {
+                return '';
+            }
+        }
         return new URL('assets/' + bundleName + '/' + path, getBaseHref()).href;
     }
 
@@ -346,7 +354,19 @@
         return MIMEMAP[ext] || 'application/octet-stream';
     }
 
-    global.BundleZipperRuntime = {
+    /**
+     * 插件对外唯一全局根：window.WebBundleZipper（SW 下为 self.WebBundleZipper）
+     * 配置、业务 API、回调均挂在此对象下，避免污染顶层全局。
+     */
+    function getApi() {
+        if (!global.WebBundleZipper) {
+            global.WebBundleZipper = {};
+        }
+        return global.WebBundleZipper;
+    }
+
+    // 唯一全局根：WebBundleZipper；内部模块均挂其子属性
+    getApi().Runtime = {
         CACHE_PREFIX: CACHE_PREFIX,
         META_CACHE: META_CACHE,
         META_URL: META_URL,
@@ -354,6 +374,7 @@
         LEGACY_ENGINE_PREFIX: LEGACY_ENGINE_PREFIX,
         LS_CONFIRMED: LS_CONFIRMED,
         Logger: Logger,
+        getApi: getApi,
         buildCacheName: buildCacheName,
         parseCacheKey: parseCacheKey,
         isManagedCacheKey: isManagedCacheKey,
