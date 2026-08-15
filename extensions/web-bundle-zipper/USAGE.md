@@ -1,7 +1,7 @@
 # Web Bundle Zipper — 业务层使用文档
 
-适用版本：`1.0.33+`  
-适用平台：Cocos Creator 3.8 · `web-mobile`  
+适用版本：`1.0.41`  
+适用平台：Cocos Creator 3.0.x · `web-mobile`  
 插件目录：`extensions/web-bundle-zipper`
 
 > 业务与配置统一挂在 `window.WebBundleZipper` 下（含内部模块 `Runtime` / `Storage` / `Installer` / `Network` / `UI` / `SW`），避免顶层全局污染。
@@ -135,17 +135,17 @@ function hideBundleLoading() {
 全部挂在 `window.WebBundleZipper` 上（下文简称 `W`）。
 
 
-| API                           | 类型                           | 说明                                 |
-| ----------------------------- | ---------------------------- | ---------------------------------- |
-| `W.installBundle(name)`       | `(name: string) => void`     | **同步触发**安装；结果只走回调，不返回 Promise      |
-| `W.checkBundleVersion(name)`  | `(name: string) => Promise<0 | 1>`                                |
-| `W.onBundleInstallProgress`   | `(name, progress) => void`   | `progress ∈ [0,1]`                 |
-| `W.onBundleInstallSuccess`    | `(name) => void`             | 解压写入完成                             |
-| `W.onBundleInstallError`      | `(name, error) => void`      | 失败                                 |
-| `W.cleanBundle(name)`         | `(name: string) => void`     | 删除该 Bundle 所有版本缓存                  |
-| `W.cleanAllBundles()`         | `() => void`                 | 清空插件管理的全部 Bundle 缓存                |
-| `W.onBundlesCleanFinish`      | `() => void`                 | `cleanAllBundles` 结束后（成功/失败都会尽量调用） |
-| `W.closeInitBundlesLoading()` | `() => void`                 | 关闭启动预装进度层                          |
+| API                           | 类型                                | 说明                                 |
+| ----------------------------- | --------------------------------- | ---------------------------------- |
+| `W.installBundle(name)`       | `(name: string) => void`          | **同步触发**安装；结果只走回调，不返回 Promise      |
+| `W.checkBundleVersion(name)`  | `(name: string) => Promise<0, 1>` | 0表示已是最新缓存版本；1表示有新版本。               |
+| `W.onBundleInstallProgress`   | `(name, progress) => void`        | `progress ∈ [0,1]`                 |
+| `W.onBundleInstallSuccess`    | `(name) => void`                  | 解压写入完成                             |
+| `W.onBundleInstallError`      | `(name, error) => void`           | 失败                                 |
+| `W.cleanBundle(name)`         | `(name: string) => void`          | 删除该 Bundle 所有版本缓存                  |
+| `W.cleanAllBundles()`         | `() => void`                      | 清空插件管理的全部 Bundle 缓存                |
+| `W.onBundlesCleanFinish`      | `() => void`                      | `cleanAllBundles` 结束后（成功/失败都会尽量调用） |
+| `W.closeInitBundlesLoading()` | `() => void`                      | 关闭启动预装进度层                          |
 
 
 ---
