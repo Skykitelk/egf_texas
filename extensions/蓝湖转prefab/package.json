@@ -1,0 +1,68 @@
+{
+  "name": "lanhu-to-prefab",
+  "version": "2.0.0",
+  "description": "蓝湖设计稿一键转 Cocos Creator 3.x Prefab，支持图层结构、文字、图片、坐标自动转换",
+  "author": "DummyCafe",
+  "main": "./main.js",
+  "editor": ">=3.8.0",
+  "panels": {
+    "default": {
+      "title": "蓝湖转Prefab",
+      "type": "dockable",
+      "main": "./panels/default/index.js",
+      "size": {
+        "min-width": 400,
+        "min-height": 300,
+        "width": 600,
+        "height": 450
+      }
+    }
+  },
+  "contributions": {
+    "menu": [
+      {
+        "path": "扩展/蓝湖转Prefab",
+        "label": "打开面板",
+        "message": "open-panel"
+      }
+    ],
+    "messages": {
+      "open-panel": {
+        "methods": [
+          "openPanel"
+        ]
+      },
+      "save-token": {
+        "methods": [
+          "saveToken"
+        ]
+      },
+      "get-token-status": {
+        "methods": [
+          "getTokenStatus"
+        ]
+      },
+      "convert": {
+        "methods": [
+          "convert"
+        ]
+      },
+      "convert-mock": {
+        "methods": [
+          "convertMock"
+        ]
+      },
+      "save-dirs": {
+        "methods": [
+          "saveDirs"
+        ]
+      },
+      "get-dirs": {
+        "methods": [
+          "getDirs"
+        ]
+      }
+    }
+  },
+  "_storeId": "d40904f4b06eda484984f130068de24d"
+}

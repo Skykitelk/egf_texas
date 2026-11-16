@@ -15,13 +15,12 @@ export class HotUpdateMgr implements egf.IModule {
 
 
     onInit(): void {
+        console.log("[HotUpdateMgr] onInit");
     }
 
     onStop(): void {
-        const bundleNames = [...this.hotUpdaterRecord.keys()];
-        for (const bundleName of bundleNames) {
-            this.destroyHotUpdater(bundleName);
-        }
+        this.destroyAllHotUpdater();
+        console.log("[HotUpdateMgr] onStop");
     }
 
     /**
@@ -65,6 +64,16 @@ export class HotUpdateMgr implements egf.IModule {
             hotUpdateUtil.destroy();
         };
     };
+
+    /**
+     * 销毁所有热更新实例
+     */
+    destroyAllHotUpdater() {
+        const bundleNames = [...this.hotUpdaterRecord.keys()];
+        for (const bundleName of bundleNames) {
+            this.destroyHotUpdater(bundleName);
+        }
+    }
 };
 
 

@@ -71,6 +71,7 @@ export class main extends Component {
 
     runTest() {
         m.uiMgr.showDpc("LoginView", { playerName: "test" });
+        m.uiMgr.showDpc("LobbyView", { playerName: "test" });
         this.scheduleOnce(() => {
             m.uiMgr.hideDpc("LoginView");
 

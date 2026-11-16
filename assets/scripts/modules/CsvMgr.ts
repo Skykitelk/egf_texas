@@ -154,7 +154,7 @@ export class CsvMgr implements egf.IModule {
         if (this._destroyed) {
             this._destroyed = false;
         }
-        console.log("CsvMgr onInit");
+        console.log("[CsvMgr] onInit");
     }
 
     /**
@@ -168,7 +168,7 @@ export class CsvMgr implements egf.IModule {
         this._tableGenerations.clear();
         this._loadingPromises.clear();
         this._releaseLoadedBundles();
-        console.log("CsvMgr onStop");
+        console.log("[CsvMgr] onStop");
     }
 
     /**

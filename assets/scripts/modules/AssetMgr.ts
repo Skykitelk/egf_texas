@@ -78,7 +78,7 @@ export class AssetMgr implements egf.IModule {
         if (this._destroyed) {
             this._destroyed = false;
         }
-        console.log("AssetMgr onInit");
+        console.log("[AssetMgr] onInit");
     }
 
     /**
@@ -91,7 +91,7 @@ export class AssetMgr implements egf.IModule {
         this._loadingPromises.clear();
         this._cacheGenerations.clear();
         this._bundleCache.clear();
-        console.log("AssetMgr onStop");
+        console.log("[AssetMgr] onStop");
     }
 
     /**

@@ -219,7 +219,7 @@ export class AudioMgr implements egf.IModule {
             this._createAudioRoots();
             this._destroyed = false;
         }
-        console.log("AudioMgr onInit");
+        console.log("[AudioMgr] onInit");
     }
 
     /**
@@ -227,7 +227,6 @@ export class AudioMgr implements egf.IModule {
      * 立即停止所有任务（跳过淡出）、持久化音量设置、清空资源缓存与对象池
      */
     onStop(): void {
-        console.log("AudioMgr onStop");
         this._flushSaveSettings();
         this._destroyed = true;
         this._pendingBgm = null;
@@ -247,7 +246,7 @@ export class AudioMgr implements egf.IModule {
         this._sfxLastPlayTime.clear();
 
         for (const source of this._sfxPool) {
-            source.node.destroy();
+            source?.node?.destroy();
         }
         this._sfxPool.length = 0;
         this._sfxPoolCreated = 0;
@@ -255,6 +254,7 @@ export class AudioMgr implements egf.IModule {
         this._activeBgmTaskId = null;
         this._bgmRoot.destroy();
         this._sfxRoot.destroy();
+        console.log("[AudioMgr] onStop");
     }
 
     // ── 播放 API ─────────────────────────────────────────

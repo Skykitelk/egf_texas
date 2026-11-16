@@ -1,9 +1,6 @@
-import { Prefab } from "cc";
 import { BaseView } from "../components/BaseView";
 
 export class LoginView extends BaseView {
-
-    onShowData: { playerName: string };
 
     onInit(config: displayCtrl.IInitConfig<"LoginView", IViewInitDataMap>) {
         super.onInit(config);
@@ -11,6 +8,7 @@ export class LoginView extends BaseView {
 
     onShow(config?: displayCtrl.IShowConfig<"LoginView", IViewInitDataMap, IViewShowDataMap>) {
         super.onShow(config);
+        config.onShowData
     }
 
     onHide() {

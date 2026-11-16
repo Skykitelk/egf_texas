@@ -249,11 +249,7 @@ export class ModuleLoader implements egf.IBootLoader {
                 // m.uiMgr.showDpc('LoadingView');
             }
 
-            assets = await m.assetMgr.loadBatch(loadItems.map((res) => ({
-                path: res.path,
-                type: res.type,
-                bundle: res.bundle,
-            })));
+            assets = await m.assetMgr.loadBatch(loadItems.map((res) => ({ ...res })));
 
             if (assets.some((asset) => !asset)) {
                 this._rollbackLoadedAssets(loadItems, assets);

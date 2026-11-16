@@ -1,0 +1,83 @@
+{
+    "builder": {
+        "platforms": {},
+        "common": {
+            "binGroupConfig": {
+                "threshold": 16,
+                "enable": false
+            },
+            "polyfills": {
+                "asyncFunctions": true
+            },
+            "buildPath": "project://build",
+            "mainBundleCompressionType": "merge_all_json",
+            "useSplashScreen": true,
+            "scenes": [
+                {
+                    "url": "db://assets/scene/main.scene",
+                    "uuid": "3e9e5750-eecd-43e9-8170-15e0d76c0233"
+                }
+            ]
+        }
+    },
+    "version": "1.0.0",
+    "scene": {
+        "gizmo": {
+            "is2D": true,
+            "transformToolName": "position",
+            "viewMode": "select",
+            "pivot": "pivot",
+            "coordinate": "local",
+            "snapConfigs": {
+                "position": {
+                    "x": 1,
+                    "y": 1,
+                    "z": 1
+                },
+                "rotation": 1,
+                "scale": 1,
+                "isPositionSnapEnabled": false,
+                "isRotationSnapEnabled": false,
+                "isScaleSnapEnabled": false
+            },
+            "rectSnapConfig": {
+                "enableSnapping": true,
+                "snapThreshold": 4
+            },
+            "toolsVisibility3d": true
+        },
+        "sceneView": {
+            "sceneLightOn": true
+        },
+        "camera-infos": {
+            "3e9e5750-eecd-43e9-8170-15e0d76c0233": {
+                "position": {
+                    "x": 751.711851145862,
+                    "y": 372.6838253992284,
+                    "z": 5000
+                },
+                "rotation": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0,
+                    "w": 1
+                },
+                "viewCenter": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                },
+                "contentRect": {
+                    "x": -745.3044357005538,
+                    "y": -469.3878359518805,
+                    "width": 1920,
+                    "height": 1080
+                },
+                "scale": 0.6412755882718661
+            }
+        },
+        "camera-uuids": [
+            "3e9e5750-eecd-43e9-8170-15e0d76c0233"
+        ]
+    }
+}

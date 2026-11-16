@@ -1,7 +1,7 @@
 import { instantiate, Node, Prefab, tween, Tween, UIOpacity, Vec3 } from "cc";
 import { NodeCtrl } from "@ailhc/dpctrl-c3d";
 import { LayerType } from "../configs/LayerConfig";
-import { getViewConfig, IViewItem, ViewConfigMap } from "../configs/ViewConfig";
+import { getViewConfig, IViewConfig, ViewConfigMap } from "../configs/ViewConfig";
 import { m } from "../modules/ModuleMgr";
 
 const SHOW_DURATION = 0.25;
@@ -11,6 +11,7 @@ type ViewCtrlWithTypeKey = { typeKey?: string };
 
 /**
  * 基础视图类。所有视图都应该继承自此基类。
+ * 该类继承NodeCtrl-(Node), 不是Component。
  */
 export abstract class BaseView extends NodeCtrl {
     /**
@@ -24,8 +25,7 @@ export abstract class BaseView extends NodeCtrl {
     /**
      * 视图配置（首次解析后缓存）
      */
-    protected viewConfig: IViewItem | null = null;
-
+    protected viewConfig: IViewConfig | null = null;
     /**
      * 显示界面前需要加载的资源列表（子类可 override 追加其他资源）
      */
@@ -53,7 +53,7 @@ export abstract class BaseView extends NodeCtrl {
         return this.ressItems;
     }
 
-    onInit(config?: displayCtrl.IInitConfig<any, any>) {
+    onInit(config?: displayCtrl.IInitConfig) {
         super.onInit(config);
         this._mountPrefabView();
     }
@@ -125,17 +125,19 @@ export abstract class BaseView extends NodeCtrl {
 
     private _getTypeKey(): keyof IViewKeyMap | null {
         const insKey = this.key;
+        console.log("insKey ============================>", insKey);
         if (insKey && insKey in ViewConfigMap) {
             return insKey as keyof IViewKeyMap;
         }
         const ctorKey = (this.constructor as ViewCtrlWithTypeKey).typeKey;
+        console.log("ctorKey ============================>", ctorKey);
         if (ctorKey && ctorKey in ViewConfigMap) {
             return ctorKey as keyof IViewKeyMap;
         }
         return null;
     }
 
-    private _getViewConfig(): IViewItem | null {
+    private _getViewConfig(): IViewConfig | null {
         if (this.viewConfig) {
             return this.viewConfig;
         }
@@ -179,7 +181,7 @@ export abstract class BaseView extends NodeCtrl {
             return;
         }
         tween(this.panel)
-            .to(HIDE_DURATION, { scale: new Vec3(0.85, 0.85, 1) }, { easing: "backIn" })
+            .to(HIDE_DURATION, { scale: new Vec3(0.85, 0.85, 0.85) }, { easing: "backIn" })
             .call(onComplete)
             .start();
 

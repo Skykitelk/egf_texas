@@ -3,7 +3,7 @@
   "settings": {
     "versionOutputDir": "/Users/oxx/Desktop/egf_texas/remoteVersion",
     "buildAndroidPath": "/Users/oxx/Desktop/egf_texas/build/android",
-    "serverType": "ssh",
+    "serverType": "s3",
     "s3Config": {
       "accessKeyId": "",
       "secretAccessKey": "",
@@ -20,7 +20,7 @@
       "privateKey": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAqcqSCyB2RJi5qYfVcekQr3RelenXgeBGdoMUh3b1l5OkICFq\n7npIJIOr3yJYZKDZHhO/BAAFZ0Ho5pAV/C1bLYzGvXdg4P+noZQcNzhzSWq78y5N\nzX/21qky7fV2Aux4dWF48wyfuQsJELHncOW34/hVYwqzCnGl1yuAf1xDtSfGdFr7\nopv3oQiEKdlqzEWUPq2eaxzKTZogjJS2X5e58Y/v5T+JLwf1z2IEveGPbgnborID\n19dqPb/96f5/tVjT+PMGUen9CgSrsPj73xWvqwzEkXlelug+GCWdRKsXW7SrElIM\nv7fH8lUmwtZrVpzqUNWRigPWRhNSvkIqg+j3HQIDAQABAoIBAGVrFHUE/N/Ygf3b\nnwkdd9P1pJHTTeDMAArGHTsVOXlCvSRcEa1E6Va2N7FeqIHi+g1XKh/Pi2q0GdOu\neRNaXD4G+qctaXa7/nsrJvdtBp/x2zZUkDCRoPVzt3Ifzk/Mw98JS9+RyM4U42NP\ngLkU3hSTvx0bxPoWDENMPsLUb7UChhiKJEBnMUuVOSly1j9lA9E+FlzVxE6jTeLk\napIH3y2M02JvBxZV+/6EUjE6iqPcDugGC/K6L3N9l+cTVlqyWgevCQtrznsOdNQD\nWTG1hTblIewpWlyYinOSvJITLr3uB9zIAwdywsMlbzeWWNemVgfl0yR1sZKrjnWh\ntC9P2MECgYEA0vTx31nTojEG4fpVpRftibR0+lM6M7s/hrHOs6r6xTRDysbncGR0\nEB5AXERWArLatJJWC2nQlXx8E0Y/Ta7Pnh8SG8XiTIiJ/XFG51aV+lFZfTexhBOy\nSZVKzb9YTXyis0QBN3IaReeJYYbnISP8f6xweKv5z+MDLu8aMh18YYUCgYEAzgt8\n2t8XxBU09vX6qiHFCSAs5f5ahHDzurVWtbEoRKhKyq4v2urnEOOuQVxpsD0b2w9V\nNWnJw08xxDwPQdaOhAnfV4iIRas8MFT2GPJy+ewRXY0A9EC5G15r2GwlwFsBCB+d\n/Si/CrHXv6faufkVVYEsZ6ejGqulPGCYoteV5rkCgYATSaHzsdrPsXvXnXPHLHDj\nbkRjvshLgotEXW1wr+lNroGkQJtYg1a5QorP5M+YX5HvgJGtaXdQs5kEih+vkpQY\n+O5G68jNBo7XRUweSqRbxqRP9o+ca9CZObUlKqGANC0MBuO1lhEg4xKEgDkRpqCn\na7S807x7bV4VJHdYral5oQKBgQCM5WAgjzPCOzo3smcRlfwVzHHHaJJfRJn2T/CW\nWCmQIYDbbhd9XOpbK0ZKnbYL9Q2qU6bR2qBEtU/zv5ozTFOySMn4In4FHh4PctnC\nn3AuJNaPIU/ItsWdyIh4uyNpkRF4i55OsmFJH+nHvjGcwI5tJOLHkuO+5icczXUy\nzbdMyQKBgBXREUPwzGB5EzVIxMs5uK21U58/BETEr+BbrcDGceDA4krPvbxaoE9g\nwWBItbCQIN1lg7QNXvc0cxLIcXfnbOhWGPVsjHOcSGBVC52D6ZmNYR5fhEgpzXDH\nFBPKAQomHTYBKNSjBIv34ubudad1B18qOvgvG26Nwo6FUIFpt76E\n-----END RSA PRIVATE KEY-----",
       "remotePath": "/data/hotupdate/"
     },
-    "lastVersion": "20260614015042",
+    "lastVersion": "20260926064553",
     "lastVersionDir": "/Users/oxx/Desktop/egf_texas/remoteVersion/20260614015042",
     "uploadVersionDir": "/Users/oxx/Desktop/egf_texas/remoteVersion/20260614015042"
   }

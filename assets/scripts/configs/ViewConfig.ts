@@ -30,23 +30,12 @@ declare global {
         LoginView: { playerName: string };
         LobbyView: { playerName: string };
     }
-}
-
-
-/**
- * 按 key 读取 View 配置
- * @param key - 界面类型（与 IViewKeyMap 键一致）
- * @returns 界面配置项
- */
-export function getViewConfig(key: keyof IViewKeyMap): IViewItem {
-    return ViewConfigMap[key];
 };
-
 
 /**
  * 界面配置项
  */
-export interface IViewItem {
+export interface IViewConfig {
     /** 界面类型（与 IViewKeyMap 键一致） */
     name: keyof IViewKeyMap;
     /** 相对于 bundle 的 prefab 路径，不带扩展名 */
@@ -61,7 +50,7 @@ export interface IViewItem {
  * 全量界面配置
  * 各 bundle 的 registerXxxViews() 从此读取并校验后 regist。
  */
-export const ViewConfigMap: Record<keyof IViewKeyMap, IViewItem> = {
+export const ViewConfigMap: Record<keyof IViewKeyMap, IViewConfig> = {
     LoginView: {
         name: "LoginView",
         path: "login/LoginView",
@@ -74,6 +63,15 @@ export const ViewConfigMap: Record<keyof IViewKeyMap, IViewItem> = {
         bundle: "lobby",
         layer: LayerType.UI,
     },
+};
+
+/**
+ * 按 key 读取 View 配置
+ * @param key - 界面类型（与 IViewKeyMap 键一致）
+ * @returns 界面配置项
+ */
+export function getViewConfig(key: keyof IViewKeyMap): IViewConfig {
+    return ViewConfigMap[key];
 };
 
 

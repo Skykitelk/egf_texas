@@ -1,20 +1,26 @@
 {
-  "name": "egf_texas",
-  "uuid": "b34ef2f1-cf61-4369-9163-716718cf08ff",
-  "creator": {
-    "version": "3.8.8"
-  },
-  "dependencies": {
-    "@ailhc/broadcast": "^1.1.9",
-    "@ailhc/dpctrl-c3d": "^1.1.10",
-    "@ailhc/egf-core": "^1.2.6",
-    "@ailhc/enet": "^1.2.7",
-    "@ailhc/layer": "^0.1.9",
-    "@ailhc/obj-pool": "^3.0.8",
-    "crypto-es": "^3.1.3",
-    "egf-protobuf": "^1.3.7"
-  },
-  "scripts": {
-    "egf-pb": "npx egf-pb generate"
-  }
+    "name": "egf_texas",
+    "type": "3d",
+    "version": "unknow",
+    "uuid": "b34ef2f1-cf61-4369-9163-716718cf08ff",
+    "creator": {
+        "version": "3.8.8"
+    },
+    "dependencies": {
+        "@ailhc/broadcast": "^1.1.9",
+        "@ailhc/dpctrl-c3d": "^1.1.10",
+        "@ailhc/egf-core": "^1.2.6",
+        "@ailhc/enet": "^1.2.7",
+        "@ailhc/layer": "^0.1.9",
+        "@ailhc/obj-pool": "^3.0.8",
+        "crypto-es": "^3.1.3",
+        "egf-protobuf": "^1.3.7"
+    },
+    "scripts": {
+        "egf-pb": "npx egf-pb generate"
+    },
+    "pink": {
+        "uuid": "ec69efde-fbaf-423a-9303-8af09dbe1ba6",
+        "version": "1.127.0"
+    }
 }

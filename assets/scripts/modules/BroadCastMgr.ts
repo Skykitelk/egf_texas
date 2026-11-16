@@ -10,16 +10,12 @@ export class BroadCastMgr implements egf.IModule {
     private broadCastMap = new Map<string, Broadcast<IBroadCastKey, IBroadCastValueType, IBroadCastResultType>>();
 
     onInit(): void {
-        console.log("BroadCastMgr onInit");
+        console.log("[BroadCastMgr] onInit");
     };
 
     onStop(): void {
-        console.log("BroadCastMgr onStop");
-        const keys = [...this.broadCastMap.keys()];
-        for (const key of keys) {
-            this.destroyBroadCast(key);
-        };   
-        this.broadCastMap.clear();
+        this.destroyAllBroadCast();
+        console.log("[BroadCastMgr] onStop");   
     };
 
     /**
@@ -56,6 +52,17 @@ export class BroadCastMgr implements egf.IModule {
             this.broadCastMap.delete(key);
             broadCast = null;
         };
+    };
+
+    /**
+     * 销毁所有广播实例
+     */
+    destroyAllBroadCast(): void {
+        const keys = [...this.broadCastMap.keys()];
+        for (const key of keys) {
+            this.destroyBroadCast(key);
+        };   
+        this.broadCastMap.clear();
     };
 };
 
