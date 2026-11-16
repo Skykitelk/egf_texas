@@ -1,0 +1,150 @@
+.bz-hidden {
+    display: none !important;
+}
+
+#bz-runtime-update-modal,
+#bz-runtime-update-overlay,
+#bz-init-bundles-loading {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    inset: 0;
+    z-index: 100000;
+}
+
+#bz-runtime-update-modal {
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+}
+
+.bz-modal-panel {
+    width: 92%;
+    max-width: 360px;
+    width: min(92vw, 360px);
+    background: #1f1f1f;
+    color: #fff;
+    border-radius: 12px;
+    padding: 24px 20px 20px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.bz-modal-message {
+    margin: 0 0 20px;
+    font-size: 16px;
+    line-height: 1.45;
+}
+
+.bz-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.bz-modal-actions button {
+    flex: 1;
+    min-height: 44px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#bz-update-now {
+    background: #f0c040;
+    color: #1a1a1a;
+}
+
+#bz-runtime-update-overlay,
+#bz-init-bundles-loading {
+    background: rgba(10, 10, 10, 0.88);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+        env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    box-sizing: border-box;
+}
+
+.bz-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255, 255, 255, 0.18);
+    border-top-color: #f0c040;
+    border-radius: 50%;
+    animation: bz-spin 0.9s linear infinite;
+}
+
+@keyframes bz-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.bz-update-status,
+.bz-init-status {
+    margin: 16px 12px 8px;
+    font-size: 15px;
+    text-align: center;
+}
+
+.bz-update-progress,
+.bz-init-progress {
+    width: 70%;
+    max-width: 280px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.bz-update-progress span,
+.bz-init-progress span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: #f0c040;
+    border-radius: 999px;
+}
+
+.bz-init-detail {
+    margin: 8px 12px 0;
+    font-size: 13px;
+    opacity: 0.75;
+    text-align: center;
+}
+
+#bz-update-retry {
+    margin-top: 20px;
+    min-height: 44px;
+    min-width: 120px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 8px;
+    background: #f0c040;
+    color: #1a1a1a;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#bz-runtime-update-overlay.bz-update-failed .bz-update-status {
+    color: #ffb4b4;
+}

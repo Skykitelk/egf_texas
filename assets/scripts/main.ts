@@ -50,6 +50,9 @@ export class main extends Component {
         })
         .catch(err => {
             m.logMgr.error(`[app] init failed: ${err}`);
+        })
+        .finally(() => {
+            (window as any)?.WebBundleZipper?.closeInitBundlesLoading?.();
         });
     };
 
@@ -70,6 +73,7 @@ export class main extends Component {
     };
 
     runTest() {
+        console.log("runTest ==========================>");
         m.uiMgr.showDpc("LoginView", { playerName: "test" });
         m.uiMgr.showDpc("LobbyView", { playerName: "test" });
         this.scheduleOnce(() => {
